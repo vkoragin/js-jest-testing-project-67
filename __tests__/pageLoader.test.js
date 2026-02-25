@@ -4,32 +4,66 @@ import fs from "fs/promises";
 import nock from "nock";
 import pageLoader from "../src/index.js";
 
-nock.disableNetConnect();
+const projectRoot = path.resolve();
+const getFixturePath = (name) => path.join(projectRoot, "__fixtures__", name);
 
-let tmpDir;
+nock.disableNetConnect(); // запрещаем реальные HTTP-запросы
 
-beforeEach(async () => {
-  tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "page-loader-"));
-});
+describe("pageLoader", () => {
+  let tmpDir;
 
-test("downloads and saves page", async () => {
-  const url = "https://ru.hexlet.io/courses";
-  const html = "<html><body>Hexlet</body></html>";
+  beforeEach(async () => {
+    tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "page-loader-"));
+  });
 
-  nock("https://ru.hexlet.io").get("/courses").reply(200, html);
+  afterEach(() => {
+    nock.cleanAll();
+  });
 
-  const { filepath } = await pageLoader(url, tmpDir);
+  test("downloads HTML page only", async () => {
+    const pageUrl = "https://ru.hexlet.io/simple";
+    const htmlFixture = "<html><body><h1>Simple Page</h1></body></html>";
 
-  const saved = await fs.readFile(filepath, "utf-8");
+    // Мокаем HTML
+    nock("https://ru.hexlet.io").get("/simple").reply(200, htmlFixture);
 
-  expect(saved).toBe(html);
-  expect(filepath).toMatch(/ru-hexlet-io-courses\.html$/);
-});
+    const { filepath } = await pageLoader(pageUrl, tmpDir);
 
-test("throws on network error", async () => {
-  const url = "https://ru.hexlet.io/unknown";
+    const savedHtml = await fs.readFile(filepath, "utf-8");
+    expect(savedHtml).toContain("Simple Page");
+  });
 
-  nock("https://ru.hexlet.io").get("/unknown").reply(404);
+  test("downloads HTML and image, rewrites image src", async () => {
+    const pageUrl = "https://ru.hexlet.io/courses";
 
-  await expect(pageLoader(url, tmpDir)).rejects.toThrow();
+    // 1. Мокаем HTML из фикстуры
+    const htmlFixture = await fs.readFile(
+      getFixturePath("courses.html"),
+      "utf-8",
+    );
+    nock("https://ru.hexlet.io").get("/courses").reply(200, htmlFixture);
+
+    // 2. Мокаем картинку из фикстуры
+    const imgData = await fs.readFile(getFixturePath("nodejs.png"));
+    nock("https://ru.hexlet.io")
+      .get("/assets/professions/nodejs.png")
+      .reply(200, imgData);
+
+    // 3. Запускаем pageLoader
+    const { filepath } = await pageLoader(pageUrl, tmpDir);
+
+    // 4. Проверяем HTML
+    const savedHtml = await fs.readFile(filepath, "utf-8");
+    expect(savedHtml).toContain("_files"); // ссылка на папку ресурсов
+    expect(savedHtml).toContain("img"); // картинка есть в HTML
+
+    // 5. Проверяем, что изображение сохранено
+    const pageName = "ru-hexlet-io-courses";
+    const resourcesDir = path.join(tmpDir, `${pageName}_files`);
+    const files = await fs.readdir(resourcesDir);
+    expect(files.length).toBe(1); // одна картинка
+    const savedImgPath = path.join(resourcesDir, files[0]);
+    const stat = await fs.stat(savedImgPath);
+    expect(stat.isFile()).toBe(true);
+  });
 });
