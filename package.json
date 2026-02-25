@@ -1,0 +1,38 @@
+{
+  "name": "@hexlet/code",
+  "version": "1.0.0",
+  "description": "[![Actions Status](https://github.com/vkoragin/js-jest-testing-project-67/actions/workflows/hexlet-check.yml/badge.svg)](https://github.com/vkoragin/js-jest-testing-project-67/actions)",
+  "type": "module",
+  "bin": {
+    "page-loader": "bin/page-loader.js"
+  },
+  "scripts": {
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "test": "jest"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/vkoragin/js-jest-testing-project-67.git"
+  },
+  "author": "vkoragin",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/vkoragin/js-jest-testing-project-67/issues"
+  },
+  "homepage": "https://github.com/vkoragin/js-jest-testing-project-67#readme",
+  "devDependencies": {
+    "@babel/core": "^7.29.0",
+    "@babel/node": "^7.29.0",
+    "@babel/preset-env": "^7.29.0",
+    "@eslint/js": "^10.0.1",
+    "babel-jest": "^30.2.0",
+    "eslint": "^10.0.2",
+    "jest": "^30.2.0",
+    "nock": "^14.0.11"
+  },
+  "dependencies": {
+    "axios": "^1.13.5",
+    "commander": "^14.0.3"
+  }
+}
