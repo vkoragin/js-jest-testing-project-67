@@ -4,142 +4,179 @@ import path from "path";
 import { URL } from "url";
 import { load } from "cheerio";
 import crypto from "crypto";
+import debug from "debug";
 
-// Максимальная длина имени файла для Windows (обычно 255 символов, оставим запас)
+// Создаем логгеры для разных неймспейсов
+const log = debug("page-loader");
+const logError = debug("page-loader:error");
+const logNetwork = debug("page-loader:network");
+const logFile = debug("page-loader:file");
+
+// Включаем логирование для axios и nock через переменные окружения
+// Это делается через установку переменной DEBUG в терминале
+
 const MAX_FILENAME_LENGTH = 200;
 
 const sanitizeFilename = (filename) => {
-  // Заменяем недопустимые символы для Windows
-  return filename
-    .replace(/[<>:"/\\|?*]/g, "-") // Недопустимые символы в Windows
-    .replace(/\s+/g, "-") // Пробелы на дефисы
-    .replace(/-+/g, "-") // Множественные дефисы на один
-    .replace(/^[.-]+|[.-]+$/g, ""); // Удаляем дефисы и точки в начале и конце
+  const sanitized = filename
+    .replace(/[<>:"/\\|?*]/g, "-")
+    .replace(/\s+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^[.-]+|[.-]+$/g, "");
+
+  log(`Sanitized filename: ${filename} -> ${sanitized}`);
+  return sanitized;
 };
 
 const generateFileName = (url) => {
+  log(`Generating filename for URL: ${url}`);
+
   const urlObj = new URL(url);
   const ext = path.extname(urlObj.pathname) || ".html";
 
-  // Получаем путь без расширения
   const pathWithoutExt = urlObj.pathname.replace(/\.[^/.]+$/, "");
-
-  // Разбиваем путь на части и берем последние значимые части
   const pathParts = pathWithoutExt.split("/").filter((p) => p.length > 0);
-
-  // Берем последние 3 части пути или меньше, если путь короче
   const relevantParts = pathParts.slice(-3);
 
-  // Создаем имя из хоста и значимых частей пути
   const hostPart = urlObj.hostname.replace(/\./g, "-");
   const pathPart = relevantParts.join("-");
 
   let filename = `${hostPart}${pathPart ? "-" + pathPart : ""}${ext}`;
 
-  // Если имя слишком длинное, используем хеш
   if (filename.length > MAX_FILENAME_LENGTH) {
+    log(`Filename too long (${filename.length}), using hash`);
     const hash = crypto.createHash("md5").update(url).digest("hex").slice(0, 8);
     filename = `${hostPart}-${hash}${ext}`;
   }
 
-  return sanitizeFilename(filename);
+  const finalFilename = sanitizeFilename(filename);
+  log(`Generated filename: ${finalFilename}`);
+  return finalFilename;
 };
 
 const isLocalResource = (resourceUrl, pageUrl) => {
   const resourceHost = new URL(resourceUrl).hostname;
   const pageHost = new URL(pageUrl).hostname;
 
-  // Ресурс считается локальным, если:
-  // 1. Это тот же хост
-  // 2. Это поддомен того же домена (ru.hexlet.io и hexlet.io)
-  // 3. Это ресурс без указания хоста (относительный путь)
-  return (
+  const isLocal =
     resourceHost === pageHost ||
     pageHost.endsWith(`.${resourceHost}`) ||
-    resourceHost.endsWith(`.${pageHost}`)
+    resourceHost.endsWith(`.${pageHost}`);
+
+  log(
+    `Resource ${resourceUrl} is ${isLocal ? "local" : "external"} (host: ${resourceHost}, page host: ${pageHost})`,
   );
+  return isLocal;
 };
 
 export default async (pageUrl, outputDir = process.cwd()) => {
-  const { data: html } = await axios.get(pageUrl);
+  log(`Starting page loader for URL: ${pageUrl}`);
+  log(`Output directory: ${outputDir}`);
 
-  const pageName = pageUrl
-    .replace(/^https?:\/\//, "")
-    .replace(/[^a-zA-Z0-9]/g, "-");
-  const htmlFilename = `${pageName}.html`;
-  const resourcesDirName = `${pageName}_files`;
+  try {
+    logNetwork(`Fetching page: ${pageUrl}`);
+    const { data: html } = await axios.get(pageUrl);
+    logNetwork(`Page fetched successfully, size: ${html.length} bytes`);
 
-  const htmlPath = path.join(outputDir, htmlFilename);
-  const resourcesDirPath = path.join(outputDir, resourcesDirName);
+    const pageName = pageUrl
+      .replace(/^https?:\/\//, "")
+      .replace(/[^a-zA-Z0-9]/g, "-");
+    const htmlFilename = `${pageName}.html`;
+    const resourcesDirName = `${pageName}_files`;
 
-  await fs.mkdir(resourcesDirPath, { recursive: true });
+    const htmlPath = path.join(outputDir, htmlFilename);
+    const resourcesDirPath = path.join(outputDir, resourcesDirName);
 
-  const $ = load(html);
+    logFile(`Creating resources directory: ${resourcesDirPath}`);
+    await fs.mkdir(resourcesDirPath, { recursive: true });
 
-  // Собираем все элементы с ресурсами
-  const resourceElements = [
-    ...$("img")
-      .toArray()
-      .map((el) => ({ el, attr: "src", type: "img" })),
-    ...$("link[rel='stylesheet']")
-      .toArray()
-      .map((el) => ({ el, attr: "href", type: "link" })),
-    ...$("link[rel='canonical']")
-      .toArray()
-      .map((el) => ({ el, attr: "href", type: "link" })),
-    ...$("script[src]")
-      .toArray()
-      .map((el) => ({ el, attr: "src", type: "script" })),
-  ];
+    const $ = load(html);
+    log(`HTML parsed with cheerio`);
 
-  const downloadPromises = resourceElements.map(async ({ el, attr }) => {
-    try {
-      const src = $(el).attr(attr);
-      if (!src) return;
+    // Собираем все элементы с ресурсами
+    const resourceElements = [
+      ...$("img")
+        .toArray()
+        .map((el) => ({ el, attr: "src", type: "img" })),
+      ...$("link[rel='stylesheet']")
+        .toArray()
+        .map((el) => ({ el, attr: "href", type: "link" })),
+      ...$("link[rel='canonical']")
+        .toArray()
+        .map((el) => ({ el, attr: "href", type: "link" })),
+      ...$("script[src]")
+        .toArray()
+        .map((el) => ({ el, attr: "src", type: "script" })),
+    ];
 
-      let resourceUrl;
-      try {
-        resourceUrl = new URL(src, pageUrl).href;
-      } catch {
-        console.warn(`Bad ${attr}: ${src}`);
-        return;
-      }
+    log(`Found ${resourceElements.length} resource elements`);
 
-      // Пропускаем внешние ресурсы (другие домены)
-      if (!isLocalResource(resourceUrl, pageUrl)) {
-        console.log(`Skipping external resource: ${resourceUrl}`);
-        return;
-      }
+    const downloadPromises = resourceElements.map(
+      async ({ el, attr, type }) => {
+        try {
+          const src = $(el).attr(attr);
+          if (!src) {
+            log(`Element ${type} has no ${attr} attribute`);
+            return;
+          }
 
-      const filename = generateFileName(resourceUrl);
-      const filePath = path.join(resourcesDirPath, filename);
+          log(`Processing ${type} with ${attr}: ${src}`);
 
-      try {
-        // Скачиваем ресурс
-        const { data } = await axios.get(resourceUrl, {
-          responseType: "arraybuffer",
-          timeout: 10000, // Добавляем таймаут
-        });
-        await fs.writeFile(filePath, data);
+          let resourceUrl;
+          try {
+            resourceUrl = new URL(src, pageUrl).href;
+            log(`Resolved URL: ${resourceUrl}`);
+          } catch {
+            logError(`Invalid URL: ${src}`);
+            return;
+          }
 
-        // Обновляем ссылку в HTML
-        $(el).attr(attr, `${resourcesDirName}/${filename}`);
+          if (!isLocalResource(resourceUrl, pageUrl)) {
+            log(`Skipping external resource: ${resourceUrl}`);
+            return;
+          }
 
-        console.log(`Downloaded: ${resourceUrl} -> ${filename}`);
-      } catch (downloadError) {
-        console.warn(
-          `Failed to download ${resourceUrl}: ${downloadError.message}`,
-        );
-        // Не обновляем ссылку в HTML при ошибке скачивания
-      }
-    } catch (err) {
-      console.warn(`Failed to process ${$(el).attr(attr)}: ${err.message}`);
-    }
-  });
+          const filename = generateFileName(resourceUrl);
+          const filePath = path.join(resourcesDirPath, filename);
 
-  await Promise.all(downloadPromises);
+          try {
+            logNetwork(`Downloading resource: ${resourceUrl}`);
+            const { data } = await axios.get(resourceUrl, {
+              responseType: "arraybuffer",
+              timeout: 10000,
+            });
+            logNetwork(`Resource downloaded, size: ${data.length} bytes`);
 
-  await fs.writeFile(htmlPath, $.html(), "utf-8");
+            logFile(`Saving resource to: ${filePath}`);
+            await fs.writeFile(filePath, data);
+            logFile(`Resource saved successfully`);
 
-  return { filepath: htmlPath };
+            const newAttr = `${resourcesDirName}/${filename}`;
+            $(el).attr(attr, newAttr);
+            log(`Updated ${type} attribute to: ${newAttr}`);
+          } catch (downloadError) {
+            logError(
+              `Failed to download ${resourceUrl}: ${downloadError.message}`,
+            );
+          }
+        } catch (err) {
+          logError(`Failed to process element: ${err.message}`);
+        }
+      },
+    );
+
+    log(`Waiting for all resources to download...`);
+    await Promise.all(downloadPromises);
+    log(`All resources processed`);
+
+    logFile(`Saving HTML to: ${htmlPath}`);
+    await fs.writeFile(htmlPath, $.html(), "utf-8");
+    logFile(`HTML saved successfully`);
+
+    log(`Page loader completed successfully`);
+    return { filepath: htmlPath };
+  } catch (error) {
+    logError(`Fatal error: ${error.message}`);
+    throw error;
+  }
 };

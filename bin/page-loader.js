@@ -1,20 +1,33 @@
-import { program } from "commander";
+#!/usr/bin/env node
+
 import pageLoader from "../src/index.js";
+import debug from "debug";
 
-program
-  .name("page-loader")
-  .description("Downloads a webpage and saves it locally")
-  .version("1.0.0")
-  .argument("<url>")
-  .option("-o, --output <dir>", "output directory", process.cwd())
-  .action(async (url, options) => {
-    try {
-      const { filepath } = await pageLoader(url, options.output);
-      console.log(filepath);
-    } catch (e) {
-      console.error(e.message);
-      process.exit(1);
-    }
+const log = debug("page-loader:cli");
+const logError = debug("page-loader:error");
+
+const pageUrl = process.argv[2];
+const outputDir = process.argv[3] || process.cwd();
+
+if (!pageUrl) {
+  console.error("Usage: page-loader <url> [output-dir]");
+  process.exit(1);
+}
+
+log(`Starting page-loader CLI`);
+log(`URL: ${pageUrl}`);
+log(`Output directory: ${outputDir}`);
+
+console.log(`Loading page: ${pageUrl}`);
+console.log(`Output directory: ${outputDir}`);
+
+pageLoader(pageUrl, outputDir)
+  .then(({ filepath }) => {
+    console.log(`Page successfully loaded to: ${filepath}`);
+    log(`CLI completed successfully`);
+  })
+  .catch((error) => {
+    console.error("Error loading page:", error.message);
+    logError(`CLI failed: ${error.message}`);
+    process.exit(1);
   });
-
-program.parse(process.argv);
