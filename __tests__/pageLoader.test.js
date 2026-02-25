@@ -7,7 +7,7 @@ import pageLoader from "../src/index.js";
 const projectRoot = path.resolve();
 const getFixturePath = (name) => path.join(projectRoot, "__fixtures__", name);
 
-nock.disableNetConnect(); // запрещаем реальные HTTP-запросы
+nock.disableNetConnect();
 
 describe("pageLoader", () => {
   let tmpDir;
@@ -20,50 +20,71 @@ describe("pageLoader", () => {
     nock.cleanAll();
   });
 
-  test("downloads HTML page only", async () => {
-    const pageUrl = "https://ru.hexlet.io/simple";
-    const htmlFixture = "<html><body><h1>Simple Page</h1></body></html>";
-
-    // Мокаем HTML
-    nock("https://ru.hexlet.io").get("/simple").reply(200, htmlFixture);
-
-    const { filepath } = await pageLoader(pageUrl, tmpDir);
-
-    const savedHtml = await fs.readFile(filepath, "utf-8");
-    expect(savedHtml).toContain("Simple Page");
-  });
-
-  test("downloads HTML and image, rewrites image src", async () => {
+  test("downloads HTML and resources, rewrites resource paths", async () => {
     const pageUrl = "https://ru.hexlet.io/courses";
 
-    // 1. Мокаем HTML из фикстуры
+    // Мокаем HTML из фикстуры
     const htmlFixture = await fs.readFile(
       getFixturePath("courses.html"),
       "utf-8",
     );
     nock("https://ru.hexlet.io").get("/courses").reply(200, htmlFixture);
 
-    // 2. Мокаем картинку из фикстуры
+    // Мокаем ресурсы
+    nock("https://ru.hexlet.io")
+      .get("/assets/application.css")
+      .reply(200, "body { color: red; }");
+
+    nock("https://ru.hexlet.io")
+      .get("/packs/js/runtime.js")
+      .reply(200, 'console.log("runtime");');
+
     const imgData = await fs.readFile(getFixturePath("nodejs.png"));
     nock("https://ru.hexlet.io")
       .get("/assets/professions/nodejs.png")
       .reply(200, imgData);
 
-    // 3. Запускаем pageLoader
+    nock("https://ru.hexlet.io")
+      .get("/courses")
+      .reply(200, "<html><body>Courses page</body></html>");
+
+    // Внешние ресурсы
+    nock("https://cdn2.hexlet.io")
+      .get("/assets/menu.css")
+      .reply(200, "external css");
+
+    nock("https://js.stripe.com").get("/v3/").reply(200, "stripe js");
+
+    // Запускаем pageLoader
     const { filepath } = await pageLoader(pageUrl, tmpDir);
 
-    // 4. Проверяем HTML
+    // 1. Проверяем изменение HTML
     const savedHtml = await fs.readFile(filepath, "utf-8");
-    expect(savedHtml).toContain("_files"); // ссылка на папку ресурсов
-    expect(savedHtml).toContain("img"); // картинка есть в HTML
 
-    // 5. Проверяем, что изображение сохранено
-    const pageName = "ru-hexlet-io-courses";
-    const resourcesDir = path.join(tmpDir, `${pageName}_files`);
+    // Локальные ресурсы должны указывать на файлы в директории
+    expect(savedHtml).toContain("ru-hexlet-io-courses_files/");
+    expect(savedHtml).not.toContain("/assets/application.css");
+    expect(savedHtml).not.toContain("/assets/professions/nodejs.png");
+    expect(savedHtml).not.toContain("/packs/js/runtime.js");
+    expect(savedHtml).not.toContain("/courses");
+
+    // Внешние ресурсы должны остаться без изменений
+    expect(savedHtml).toContain("https://cdn2.hexlet.io/assets/menu.css");
+    expect(savedHtml).toContain("https://js.stripe.com/v3/");
+
+    // 2. Проверяем скачивание ресурсов
+    const resourcesDir = path.join(tmpDir, "ru-hexlet-io-courses_files");
     const files = await fs.readdir(resourcesDir);
-    expect(files.length).toBe(1); // одна картинка
-    const savedImgPath = path.join(resourcesDir, files[0]);
-    const stat = await fs.stat(savedImgPath);
-    expect(stat.isFile()).toBe(true);
+
+    // Проверяем, что скачались все 4 ресурса
+    expect(files.length).toBe(4);
+
+    // Проверяем, что файлы существуют и не пустые
+    for (const file of files) {
+      const filePath = path.join(resourcesDir, file);
+      const stat = await fs.stat(filePath);
+      expect(stat.isFile()).toBe(true);
+      expect(stat.size).toBeGreaterThan(0);
+    }
   });
 });
