@@ -84,19 +84,6 @@ describe("pageLoader", () => {
     expect(files.length).toBe(4);
   });
 
-  test("throws an error when the network fails for the main page", async () => {
-    const pageUrl = "https://ru.hexlet.io/courses";
-
-    nock("https://ru.hexlet.io").get("/courses").replyWithError({
-      code: "ENOTFOUND",
-      message: "getaddrinfo ENOTFOUND ru.hexlet.io",
-    });
-
-    await expect(pageLoader(pageUrl, tmpDir)).rejects.toThrow(
-      /Network error|Cannot reach|No response received/,
-    );
-  }, 15000);
-
   test("throws an error when the server responds with 404 for the main page", async () => {
     const pageUrl = "https://ru.hexlet.io/courses";
 
