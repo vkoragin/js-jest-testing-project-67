@@ -1,20 +1,20 @@
 #!/usr/bin/env node
+import { program } from "commander";
 import pageLoader from "../index.js";
 
-const pageUrl = process.argv[2];
-const outputDir = process.argv[3] || process.cwd();
-
-if (!pageUrl) {
-  console.error("Usage: page-loader <url> [output-dir]");
-  process.exit(1); // Код ошибки 1
-}
-
-pageLoader(pageUrl, outputDir)
-  .then(({ filepath }) => {
-    console.log(`Page successfully loaded to: ${filepath}`);
-    process.exit(0); // Успешное завершение
-  })
-  .catch((error) => {
-    console.error("Error loading page:", error.message); // Вывод в STDERR
-    process.exit(1); // Код ошибки 1
+program
+  .name("page-loader")
+  .argument("<url>", "page URL")
+  .option("-o, --output <dir>", "output directory", process.cwd())
+  .action(async (url, options) => {
+    try {
+      const { filepath } = await pageLoader(url, options.output);
+      console.log(`Page successfully loaded to: ${filepath}`);
+      process.exit(0);
+    } catch (error) {
+      console.error(`Error loading page: ${error.message}`);
+      process.exit(1);
+    }
   });
+
+program.parse(process.argv);
