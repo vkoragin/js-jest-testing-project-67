@@ -17,19 +17,20 @@ const sanitizeFilename = (filename) =>
 const generateFileName = (url) => {
   const urlObj = new URL(url);
   const ext = path.extname(urlObj.pathname) || ".html";
-  const pathParts = urlObj.pathname
-    .replace(/\.[^/.]+$/, "")
-    .split("/")
-    .filter(Boolean);
-  const relevantParts = pathParts.slice(-3);
+
+  const pathWithoutExt = urlObj.pathname.replace(/\.[^/.]+$/, "");
+  const pathParts = pathWithoutExt.split("/").filter(Boolean);
+
   const hostPart = urlObj.hostname.replace(/\./g, "-");
-  const pathPart = relevantParts.join("-");
+  const pathPart = pathParts.join("-");
+
   let filename = `${hostPart}${pathPart ? "-" + pathPart : ""}${ext}`;
 
   if (filename.length > MAX_FILENAME_LENGTH) {
     const hash = crypto.createHash("md5").update(url).digest("hex").slice(0, 8);
     filename = `${hostPart}-${hash}${ext}`;
   }
+
   return sanitizeFilename(filename);
 };
 
