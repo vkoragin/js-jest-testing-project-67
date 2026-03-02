@@ -1,5 +1,3 @@
-## Использование
+### Hexlet tests and linter status:
 
-```bash
-npx babel-node bin/page-loader.js https://ru.hexlet.io/courses
-```
+[![Actions Status](https://github.com/vkoragin/js-jest-testing-project-67/actions/workflows/hexlet-check.yml/badge.svg)](https://github.com/vkoragin/js-jest-testing-project-67/actions)
