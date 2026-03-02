@@ -10,7 +10,7 @@ import os from "os";
 import path from "path";
 import fs from "fs/promises";
 import nock from "nock";
-import pageLoader from "../src/index.js";
+import pageLoader from "../index.js";
 
 const projectRoot = path.resolve();
 const getFixturePath = (name) => path.join(projectRoot, "__fixtures__", name);

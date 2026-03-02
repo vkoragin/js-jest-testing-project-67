@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import pageLoader from "../src/index.js";
+import pageLoader from "../index.js";
 
 const pageUrl = process.argv[2];
 const outputDir = process.argv[3] || process.cwd();
