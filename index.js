@@ -4,6 +4,9 @@ import path from "path";
 import { load } from "cheerio";
 import { URL } from "url";
 import crypto from "crypto";
+import httpAdapter from "axios/lib/adapters/http.js";
+
+axios.defaults.adapter = httpAdapter;
 
 const MAX_FILENAME_LENGTH = 200;
 
