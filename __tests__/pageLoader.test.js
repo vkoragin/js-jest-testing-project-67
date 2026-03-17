@@ -44,9 +44,10 @@ describe("pageLoader", () => {
       "utf-8",
     );
 
-    // Два перехвата для двух запросов к /courses (основной и canonical)
-    nock("https://ru.hexlet.io").get("/courses").reply(200, htmlFixture);
-    nock("https://ru.hexlet.io").get("/courses").reply(200, htmlFixture);
+    nock("https://ru.hexlet.io")
+      .get("/courses")
+      .times(2)
+      .reply(200, htmlFixture);
 
     nock("https://ru.hexlet.io")
       .get("/assets/application.css")
