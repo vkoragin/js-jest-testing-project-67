@@ -91,12 +91,14 @@ export default async (pageUrl, outputDir = process.cwd()) => {
     ...$("img")
       .toArray()
       .map((el) => ({ el, attr: "src" })),
-    ...$("link[rel='stylesheet']")
-      .toArray()
-      .map((el) => ({ el, attr: "href" })),
+
     ...$("script[src]")
       .toArray()
       .map((el) => ({ el, attr: "src" })),
+
+    ...$("link[href]")
+      .toArray()
+      .map((el) => ({ el, attr: "href" })),
   ];
 
   await Promise.all(
