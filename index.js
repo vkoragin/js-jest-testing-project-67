@@ -4,6 +4,11 @@ import path from "path";
 import { load } from "cheerio";
 import { URL } from "url";
 import crypto from "crypto";
+import httpAdapter from "axios/lib/adapters/http.js";
+import debugLib from "debug";
+
+axios.defaults.adapter = httpAdapter;
+const debug = debugLib("page-loader");
 
 const MAX_FILENAME_LENGTH = 200;
 
@@ -17,26 +22,21 @@ const sanitizeFilename = (filename) =>
 const generateFileName = (url) => {
   const urlObj = new URL(url);
   const ext = path.extname(urlObj.pathname) || ".html";
-
   const pathWithoutExt = urlObj.pathname.replace(/\.[^/.]+$/, "");
   const pathParts = pathWithoutExt.split("/").filter(Boolean);
-
   const hostPart = urlObj.hostname.replace(/\./g, "-");
   const pathPart = pathParts.join("-");
-
   let filename = `${hostPart}${pathPart ? "-" + pathPart : ""}${ext}`;
-
   if (filename.length > MAX_FILENAME_LENGTH) {
     const hash = crypto.createHash("md5").update(url).digest("hex").slice(0, 8);
     filename = `${hostPart}-${hash}${ext}`;
   }
-
   return sanitizeFilename(filename);
 };
 
 const isLocalResource = (resourceUrl, pageUrl) => {
   try {
-    const resourceHost = new URL(resourceUrl).hostname;
+    const resourceHost = new URL(resourceUrl, pageUrl).hostname;
     const pageHost = new URL(pageUrl).hostname;
     return resourceHost === pageHost;
   } catch {
@@ -45,41 +45,42 @@ const isLocalResource = (resourceUrl, pageUrl) => {
 };
 
 export default async (pageUrl, outputDir = process.cwd()) => {
-  // ✅ проверка URL
-  try {
-    new URL(pageUrl);
-  } catch {
-    throw new Error("Invalid URL");
-  }
+  debug("Start loading page: %s", pageUrl);
 
   let html;
-
   try {
-    const response = await axios.get(pageUrl);
+    const response = await axios.get(pageUrl, {
+      maxRedirects: 0,
+      validateStatus: null,
+    });
     html = response.data;
+    if (response.status !== 200) {
+      throw new Error(
+        `Failed to load page ${pageUrl}: status ${response.status}`,
+      );
+    }
   } catch (error) {
     if (error.response) {
-      throw new Error(`Request failed with status ${error.response.status}`, {
-        cause: error,
-      });
+      throw new Error(
+        `Failed to load page ${pageUrl}: status ${error.response.status}`,
+        { cause: error },
+      );
     }
-
     if (error.request) {
       throw new Error(`Failed to load page ${pageUrl}: Network error`, {
         cause: error,
       });
     }
-
-    throw new Error(error.message, { cause: error });
+    throw new Error(`Failed to load page ${pageUrl}: ${error.message}`, {
+      cause: error,
+    });
   }
 
   const pageName = pageUrl
     .replace(/^https?:\/\//, "")
     .replace(/[^a-zA-Z0-9]/g, "-");
-
   const htmlFilename = `${pageName}.html`;
   const resourcesDirName = `${pageName}_files`;
-
   const htmlPath = path.join(outputDir, htmlFilename);
   const resourcesDirPath = path.join(outputDir, resourcesDirName);
 
@@ -91,12 +92,16 @@ export default async (pageUrl, outputDir = process.cwd()) => {
     ...$("img")
       .toArray()
       .map((el) => ({ el, attr: "src" })),
-
     ...$("script[src]")
       .toArray()
       .map((el) => ({ el, attr: "src" })),
-
-    ...$("link[href]")
+    ...$("link[rel='stylesheet']")
+      .toArray()
+      .map((el) => ({ el, attr: "href" })),
+    ...$("link[rel='canonical']")
+      .toArray()
+      .map((el) => ({ el, attr: "href" })),
+    ...$("link[rel='icon']")
       .toArray()
       .map((el) => ({ el, attr: "href" })),
   ];
@@ -110,6 +115,7 @@ export default async (pageUrl, outputDir = process.cwd()) => {
       try {
         resourceUrl = new URL(src, pageUrl).href;
       } catch {
+        debug("Skipping invalid URL: %s", src);
         return;
       }
 
@@ -122,16 +128,21 @@ export default async (pageUrl, outputDir = process.cwd()) => {
         const response = await axios.get(resourceUrl, {
           responseType: "arraybuffer",
         });
-
         await fs.writeFile(filePath, response.data);
         $(el).attr(attr, `${resourcesDirName}/${filename}`);
-      } catch {
-        // игнорируем ошибки ресурсов (404 и т.д.)
+        debug("Downloaded resource: %s", resourceUrl);
+      } catch (err) {
+        debug("Failed to download resource %s: %s", resourceUrl, err.message);
       }
     }),
   );
 
-  await fs.writeFile(htmlPath, $.html(), "utf-8");
+  try {
+    await fs.writeFile(htmlPath, $.html(), "utf-8");
+    debug("Saved HTML to %s", htmlPath);
+  } catch (err) {
+    throw new Error(`Cannot write HTML file: ${err.message}`, { cause: err });
+  }
 
   return { filepath: htmlPath };
 };
