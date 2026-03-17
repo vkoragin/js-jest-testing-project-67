@@ -56,6 +56,9 @@ export default async (pageUrl, outputDir = process.cwd()) => {
   try {
     const response = await axios.get(pageUrl);
     html = response.data;
+
+    const baseUrl = new URL(pageUrl).href;
+    await axios.get(baseUrl);
   } catch (error) {
     if (error.response) {
       const customError = new Error(
