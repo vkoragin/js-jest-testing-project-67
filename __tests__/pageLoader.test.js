@@ -7,16 +7,15 @@ import {
   afterAll,
 } from "@jest/globals";
 import os from "os";
-import { fileURLToPath } from "url";
 import path from "path";
 import fs from "fs/promises";
 import nock from "nock";
 import pageLoader from "../index.js";
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const getFixturePath = (name) =>
-  path.join(__dirname, "..", "__fixtures__", name);
+const projectRoot = path.resolve();
+console.log(projectRoot);
+const getFixturePath = (name) => path.join(projectRoot, "__fixtures__", name);
+console.log(getFixturePath);
 
 nock.disableNetConnect();
 
