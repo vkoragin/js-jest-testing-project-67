@@ -11,11 +11,12 @@ import path from "path";
 import fs from "fs/promises";
 import nock from "nock";
 import pageLoader from "../index.js";
+import { fileURLToPath } from "url";
 
-const projectRoot = path.resolve();
-console.log(projectRoot);
-const getFixturePath = (name) => path.join(projectRoot, "__fixtures__", name);
-console.log(getFixturePath);
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const getFixturePath = (name) =>
+  path.join(__dirname, "..", "__fixtures__", name);
 
 nock.disableNetConnect();
 
@@ -43,6 +44,8 @@ describe("pageLoader", () => {
       "utf-8",
     );
 
+    // Два перехвата для двух запросов к /courses (основной и canonical)
+    nock("https://ru.hexlet.io").get("/courses").reply(200, htmlFixture);
     nock("https://ru.hexlet.io").get("/courses").reply(200, htmlFixture);
 
     nock("https://ru.hexlet.io")
@@ -57,10 +60,6 @@ describe("pageLoader", () => {
     nock("https://ru.hexlet.io")
       .get("/assets/professions/nodejs.png")
       .reply(200, imgData);
-
-    nock("https://ru.hexlet.io")
-      .get("/courses")
-      .reply(200, "<html><body>Courses page</body></html>");
 
     nock("https://cdn2.hexlet.io")
       .get("/assets/menu.css")
