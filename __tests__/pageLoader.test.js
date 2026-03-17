@@ -12,6 +12,9 @@ import fs from "fs/promises";
 import nock from "nock";
 import pageLoader from "../index.js";
 import { fileURLToPath } from "url";
+import axios from "axios";
+
+axios.defaults.adapter = "http";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);

@@ -4,10 +4,8 @@ import path from "path";
 import { load } from "cheerio";
 import { URL } from "url";
 import crypto from "crypto";
-import httpAdapter from "axios/lib/adapters/http.js";
 import debugLib from "debug";
 
-axios.defaults.adapter = httpAdapter;
 const debug = debugLib("page-loader");
 
 const MAX_FILENAME_LENGTH = 200;
