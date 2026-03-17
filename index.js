@@ -54,11 +54,17 @@ const isLocalResource = (resourceUrl, pageUrl) => {
 export default async (pageUrl, outputDir = process.cwd()) => {
   let html;
   try {
-    const response = await axios.get(pageUrl);
+    const response = await axios.get(pageUrl, {
+      maxRedirects: 0,
+      validateStatus: null,
+    });
     html = response.data;
 
-    const baseUrl = new URL(pageUrl).href;
-    await axios.get(baseUrl);
+    if (response.status !== 200) {
+      throw new Error(
+        `Failed to load page ${pageUrl}: Server responded with status ${response.status}`,
+      );
+    }
   } catch (error) {
     if (error.response) {
       const customError = new Error(
