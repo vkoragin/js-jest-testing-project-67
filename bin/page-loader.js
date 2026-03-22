@@ -1,6 +1,6 @@
 #!/usr/bin/env node
-import { program } from 'commander';
-import pageLoader from '../index.js';
+import { program } from 'commander'
+import pageLoader from '../index.js'
 
 program
   .name('page-loader')
@@ -8,13 +8,13 @@ program
   .option('-o, --output <dir>', 'output directory', process.cwd())
   .action(async (url, options) => {
     try {
-      const { filepath } = await pageLoader(url, options.output);
-      console.log(`Page successfully loaded to: ${filepath}`);
-      process.exit(0);
+      const { filepath } = await pageLoader(url, options.output)
+      console.log(`Page successfully loaded to: ${filepath}`)
+      process.exit(0)
     } catch (error) {
-      console.error(`Error loading page: ${error.message}`);
-      process.exit(1);
+      console.error(`Error loading page: ${error.message}`)
+      process.exit(1)
     }
-  });
+  })
 
-program.parse(process.argv);
+program.parse(process.argv)
