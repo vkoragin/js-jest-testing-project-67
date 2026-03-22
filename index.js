@@ -88,19 +88,17 @@ export default async (pageUrl, outputDir = process.cwd()) => {
       const filename = getFileName(resourceUrl);
       const filepath = path.join(resourcesDir, filename);
 
-      try {
-        const res = await axios.get(resourceUrl, {
-          responseType: "arraybuffer",
-          validateStatus: null,
-        });
+      const res = await axios.get(resourceUrl, {
+        responseType: "arraybuffer",
+        validateStatus: null,
+      });
 
-        if (res.status !== 200) return;
-
-        await fs.writeFile(filepath, res.data);
-        $(el).attr(attr, `${pageName}_files/${filename}`);
-      } catch {
-        // игнорируем ошибки ресурсов
+      if (response.status !== 200) {
+        throw new Error(`Request failed with status ${response.status}`);
       }
+
+      await fs.writeFile(filepath, res.data);
+      $(el).attr(attr, `${pageName}_files/${filename}`);
     }),
   );
 
