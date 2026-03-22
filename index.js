@@ -1,12 +1,10 @@
+import axios from "axios";
 import fs from "fs/promises";
 import path from "path";
 import { load } from "cheerio";
 import { URL } from "url";
 import crypto from "crypto";
 import debugLib from "debug";
-import axios from "axios";
-
-axios.defaults.adapter = "http";
 
 const debug = debugLib("page-loader");
 
