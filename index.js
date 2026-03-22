@@ -1,32 +1,32 @@
-import axios from "axios";
-import fs from "fs/promises";
-import path from "path";
-import { load } from "cheerio";
-import { URL } from "url";
-import crypto from "crypto";
-import debugLib from "debug";
+import axios from 'axios';
+import fs from 'fs/promises';
+import path from 'path';
+import { load } from 'cheerio';
+import { URL } from 'url';
+import crypto from 'crypto';
+import debugLib from 'debug';
 
-const debug = debugLib("page-loader");
+const debug = debugLib('page-loader');
 
 const MAX_FILENAME_LENGTH = 200;
 
 const sanitizeFilename = (filename) =>
   filename
-    .replace(/[<>:"/\\|?*]/g, "-")
-    .replace(/\s+/g, "-")
-    .replace(/-+/g, "-")
-    .replace(/^[.-]+|[.-]+$/g, "");
+    .replace(/[<>:"/\\|?*]/g, '-')
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^[.-]+|[.-]+$/g, '');
 
 const generateFileName = (url) => {
   const urlObj = new URL(url);
-  const ext = path.extname(urlObj.pathname) || ".html";
-  const pathWithoutExt = urlObj.pathname.replace(/\.[^/.]+$/, "");
-  const pathParts = pathWithoutExt.split("/").filter(Boolean);
-  const hostPart = urlObj.hostname.replace(/\./g, "-");
-  const pathPart = pathParts.join("-");
-  let filename = `${hostPart}${pathPart ? "-" + pathPart : ""}${ext}`;
+  const ext = path.extname(urlObj.pathname) || '.html';
+  const pathWithoutExt = urlObj.pathname.replace(/\.[^/.]+$/, '');
+  const pathParts = pathWithoutExt.split('/').filter(Boolean);
+  const hostPart = urlObj.hostname.replace(/\./g, '-');
+  const pathPart = pathParts.join('-');
+  let filename = `${hostPart}${pathPart ? '-' + pathPart : ''}${ext}`;
   if (filename.length > MAX_FILENAME_LENGTH) {
-    const hash = crypto.createHash("md5").update(url).digest("hex").slice(0, 8);
+    const hash = crypto.createHash('md5').update(url).digest('hex').slice(0, 8);
     filename = `${hostPart}-${hash}${ext}`;
   }
   return sanitizeFilename(filename);
@@ -55,7 +55,7 @@ const handleAxiosError = (error, url) => {
 };
 
 export default async (pageUrl, outputDir = process.cwd()) => {
-  debug("Start loading page: %s", pageUrl);
+  debug('Start loading page: %s', pageUrl);
 
   let html;
   try {
@@ -66,8 +66,8 @@ export default async (pageUrl, outputDir = process.cwd()) => {
   }
 
   const pageName = pageUrl
-    .replace(/^https?:\/\//, "")
-    .replace(/[^a-zA-Z0-9]/g, "-");
+    .replace(/^https?:\/\//, '')
+    .replace(/[^a-zA-Z0-9]/g, '-');
   const htmlFilename = `${pageName}.html`;
   const resourcesDirName = `${pageName}_files`;
   const htmlPath = path.join(outputDir, htmlFilename);
@@ -85,21 +85,21 @@ export default async (pageUrl, outputDir = process.cwd()) => {
   const $ = load(html);
 
   const resourceElements = [
-    ...$("img")
+    ...$('img')
       .toArray()
-      .map((el) => ({ el, attr: "src" })),
-    ...$("script[src]")
+      .map((el) => ({ el, attr: 'src' })),
+    ...$('script[src]')
       .toArray()
-      .map((el) => ({ el, attr: "src" })),
-    ...$("link[rel='stylesheet']")
+      .map((el) => ({ el, attr: 'src' })),
+    ...$('link[rel=\'stylesheet\']')
       .toArray()
-      .map((el) => ({ el, attr: "href" })),
-    ...$("link[rel='canonical']")
+      .map((el) => ({ el, attr: 'href' })),
+    ...$('link[rel=\'canonical\']')
       .toArray()
-      .map((el) => ({ el, attr: "href" })),
-    ...$("link[rel='icon']")
+      .map((el) => ({ el, attr: 'href' })),
+    ...$('link[rel=\'icon\']')
       .toArray()
-      .map((el) => ({ el, attr: "href" })),
+      .map((el) => ({ el, attr: 'href' })),
   ];
 
   const results = await Promise.allSettled(
@@ -111,7 +111,7 @@ export default async (pageUrl, outputDir = process.cwd()) => {
       try {
         resourceUrl = new URL(src, pageUrl).href;
       } catch {
-        debug("Skipping invalid URL: %s", src);
+        debug('Skipping invalid URL: %s', src);
         return;
       }
 
@@ -121,24 +121,24 @@ export default async (pageUrl, outputDir = process.cwd()) => {
       const filePath = path.join(resourcesDirPath, filename);
 
       const response = await axios.get(resourceUrl, {
-        responseType: "arraybuffer",
+        responseType: 'arraybuffer',
       });
 
       await fs.writeFile(filePath, response.data);
       $(el).attr(attr, `${resourcesDirName}/${filename}`);
-      debug("Downloaded resource: %s", resourceUrl);
+      debug('Downloaded resource: %s', resourceUrl);
     }),
   );
 
   results.forEach((result) => {
-    if (result.status === "rejected") {
-      debug("Failed to download resource: %s", result.reason.message);
+    if (result.status === 'rejected') {
+      debug('Failed to download resource: %s', result.reason.message);
     }
   });
 
   try {
-    await fs.writeFile(htmlPath, $.html(), "utf-8");
-    debug("Saved HTML to %s", htmlPath);
+    await fs.writeFile(htmlPath, $.html(), 'utf-8');
+    debug('Saved HTML to %s', htmlPath);
   } catch (error) {
     throw new Error(`Cannot write HTML file ${htmlPath}: ${error.message}`, {
       cause: error,
