@@ -10,14 +10,14 @@ const debug = debugLib('page-loader')
 
 const MAX_FILENAME_LENGTH = 200
 
-const sanitizeFilename = (filename) =>
+const sanitizeFilename = filename =>
   filename
     .replace(/[<>:"/\\|?*]/g, '-')
     .replace(/\s+/g, '-')
     .replace(/-+/g, '-')
     .replace(/^[.-]+|[.-]+$/g, '')
 
-const generateFileName = (url) => {
+const generateFileName = url => {
   const urlObj = new URL(url)
   const ext = path.extname(urlObj.pathname) || '.html'
   const pathWithoutExt = urlObj.pathname.replace(/\.[^/.]+$/, '')
@@ -90,19 +90,19 @@ export default async (pageUrl, outputDir = process.cwd()) => {
   const resourceElements = [
     ...$('img')
       .toArray()
-      .map((el) => ({ el, attr: 'src' })),
+      .map(el => ({ el, attr: 'src' })),
     ...$('script[src]')
       .toArray()
-      .map((el) => ({ el, attr: 'src' })),
+      .map(el => ({ el, attr: 'src' })),
     ...$('link[rel=\'stylesheet\']')
       .toArray()
-      .map((el) => ({ el, attr: 'href' })),
+      .map(el => ({ el, attr: 'href' })),
     ...$('link[rel=\'canonical\']')
       .toArray()
-      .map((el) => ({ el, attr: 'href' })),
+      .map(el => ({ el, attr: 'href' })),
     ...$('link[rel=\'icon\']')
       .toArray()
-      .map((el) => ({ el, attr: 'href' })),
+      .map(el => ({ el, attr: 'href' })),
   ]
 
   const results = await Promise.allSettled(
@@ -134,7 +134,7 @@ export default async (pageUrl, outputDir = process.cwd()) => {
     }),
   )
 
-  results.forEach((result) => {
+  results.forEach(result => {
     if (result.status === 'rejected') {
       debug('Failed to download resource: %s', result.reason.message)
     }
