@@ -45,31 +45,15 @@ const isLocalResource = (resourceUrl, pageUrl) => {
 export default async (pageUrl, outputDir = process.cwd()) => {
   debug("Start loading page: %s", pageUrl);
 
-  let html;
-  try {
-    const response = await axios.get(pageUrl);
-    html = response.data;
-    if (response.status !== 200) {
-      throw new Error(
-        `Failed to load page ${pageUrl}: status ${response.status}`,
-      );
-    }
-  } catch (error) {
-    if (error.response) {
-      throw new Error(
-        `Failed to load page ${pageUrl}: status ${error.response.status}`,
-        { cause: error },
-      );
-    }
-    if (error.request) {
-      throw new Error(`Failed to load page ${pageUrl}: Network error`, {
-        cause: error,
-      });
-    }
-    throw new Error(`Failed to load page ${pageUrl}: ${error.message}`, {
-      cause: error,
-    });
+  const response = await axios.get(pageUrl);
+
+  if (response.status !== 200) {
+    throw new Error(
+      `Failed to load page ${pageUrl}: status ${response.status}`,
+    );
   }
+
+  const html = response.data;
 
   const pageName = pageUrl
     .replace(/^https?:\/\//, "")
@@ -119,25 +103,17 @@ export default async (pageUrl, outputDir = process.cwd()) => {
       const filename = generateFileName(resourceUrl);
       const filePath = path.join(resourcesDirPath, filename);
 
-      try {
-        const response = await axios.get(resourceUrl, {
-          responseType: "arraybuffer",
-        });
-        await fs.writeFile(filePath, response.data);
-        $(el).attr(attr, `${resourcesDirName}/${filename}`);
-        debug("Downloaded resource: %s", resourceUrl);
-      } catch (err) {
-        debug("Failed to download resource %s: %s", resourceUrl, err.message);
-      }
+      const resourceResponse = await axios.get(resourceUrl, {
+        responseType: "arraybuffer",
+      });
+      await fs.writeFile(filePath, resourceResponse.data);
+      $(el).attr(attr, `${resourcesDirName}/${filename}`);
+      debug("Downloaded resource: %s", resourceUrl);
     }),
   );
 
-  try {
-    await fs.writeFile(htmlPath, $.html(), "utf-8");
-    debug("Saved HTML to %s", htmlPath);
-  } catch (err) {
-    throw new Error(`Cannot write HTML file: ${err.message}`, { cause: err });
-  }
+  await fs.writeFile(htmlPath, $.html(), "utf-8");
+  debug("Saved HTML to %s", htmlPath);
 
   return { filepath: htmlPath };
 };
