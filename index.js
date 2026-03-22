@@ -86,6 +86,7 @@ export default async (pageUrl, outputDir = process.cwd()) => {
 
   const $ = load(html);
 
+  // Обрабатываем обычные ресурсы (изображения, скрипты, стили)
   const resourceElements = [
     ...$("img")
       .toArray()
@@ -131,6 +132,43 @@ export default async (pageUrl, outputDir = process.cwd()) => {
       }
     }),
   );
+
+  // Обрабатываем canonical ссылку
+  $("link[rel='canonical']").each((_, el) => {
+    const href = $(el).attr("href");
+    if (!href) return;
+
+    try {
+      const canonicalUrl = new URL(href, pageUrl).href;
+      // Проверяем, ведет ли canonical на ту же страницу
+      if (canonicalUrl === pageUrl || canonicalUrl === new URL(pageUrl).href) {
+        // Заменяем на локальный HTML файл
+        $(el).attr("href", htmlFilename);
+        debug("Updated canonical link to: %s", htmlFilename);
+      } else if (isLocalResource(canonicalUrl, pageUrl)) {
+        // Если canonical ведет на другой локальный ресурс, скачиваем его
+        const filename = generateFileName(canonicalUrl);
+        const filePath = path.join(resourcesDirPath, filename);
+
+        axios
+          .get(canonicalUrl, { responseType: "arraybuffer" })
+          .then(async (response) => {
+            await fs.writeFile(filePath, response.data);
+            $(el).attr("href", `${resourcesDirName}/${filename}`);
+            debug("Downloaded canonical resource: %s", canonicalUrl);
+          })
+          .catch((err) => {
+            debug(
+              "Failed to download canonical resource %s: %s",
+              canonicalUrl,
+              err.message,
+            );
+          });
+      }
+    } catch (err) {
+      debug("Failed to process canonical link: %s", err.message);
+    }
+  });
 
   try {
     await fs.writeFile(htmlPath, $.html(), "utf-8");
