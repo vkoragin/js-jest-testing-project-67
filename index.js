@@ -9,8 +9,18 @@ const getPageName = (url) =>
 
 const getFileName = (url) => {
   const { pathname, hostname } = new URL(url);
-  const name = `${hostname}${pathname}`.replace(/[^a-zA-Z0-9]/g, "-");
-  return name.endsWith("-") ? `${name}index.html` : `${name}.html`;
+
+  const ext = path.extname(pathname);
+
+  const name = `${hostname}${pathname}`
+    .replace(/\.[^/.]+$/, "")
+    .replace(/[^a-zA-Z0-9]/g, "-");
+
+  if (!ext) {
+    return `${name}.html`; // это ресурс, не страница
+  }
+
+  return `${name}${ext}`;
 };
 
 const isLocal = (resourceUrl, pageUrl) => {
@@ -54,6 +64,9 @@ export default async (pageUrl, outputDir = process.cwd()) => {
       .toArray()
       .map((el) => ({ el, attr: "src" })),
     ...$("link[rel='stylesheet']")
+      .toArray()
+      .map((el) => ({ el, attr: "href" })),
+    ...$("link[rel='canonical']")
       .toArray()
       .map((el) => ({ el, attr: "href" })),
   ];
