@@ -24,19 +24,31 @@ describe("pageLoader", () => {
   });
 
   afterEach(async () => {
-    nock.cleanAll();
+    nock.cleanAll(); // Очищаем все моки
     await fs.rm(tmpDir, { recursive: true, force: true });
   });
 
   afterAll(() => {
-    nock.enableNetConnect(); // Восстановить возможность сетевых соединений
+    nock.enableNetConnect(); // Возвращаем возможность HTTP-запросов после тестов
   });
 
-  test("downloads page and saves HTML", async () => {
-    // Мок основной HTML
+  // ВАЖНО: все мокы необходимо добавлять перед вызовом pageLoader
+  // Поэтому создаем функцию, которая мока все запросы, и вызываем ее прямо перед вызовом
+  async function setupMocks() {
+    // Мокаем основной HTML
     nock("https://ru.hexlet.io")
       .get("/courses")
       .reply(200, "<html><body>Test page</body></html>");
+    // Мокаем ресурсы внутри HTML
+    nock("https://ru.hexlet.io")
+      .get("/assets/logo.png")
+      .reply(200, "image data")
+      .get("/styles/main.css")
+      .reply(200, "body { color: red; }");
+  }
+
+  test("downloads page and saves HTML", async () => {
+    await setupMocks();
 
     const { filepath } = await pageLoader(pageUrl, tmpDir);
 
@@ -46,24 +58,7 @@ describe("pageLoader", () => {
   });
 
   test("downloads local resources and updates paths", async () => {
-    const html = `
-      <html>
-        <body>
-          <img src="/assets/logo.png" alt="Logo">
-          <link rel="stylesheet" href="/styles/main.css">
-        </body>
-      </html>
-    `;
-
-    // Мок главной страницы
-    nock("https://ru.hexlet.io")
-      .get("/courses")
-      .reply(200, html)
-      // Мокаем ресурсы
-      .get("/assets/logo.png")
-      .reply(200, "image data")
-      .get("/styles/main.css")
-      .reply(200, "body { color: red; }");
+    await setupMocks();
 
     await pageLoader(pageUrl, tmpDir);
 
@@ -84,16 +79,19 @@ describe("pageLoader", () => {
   });
 
   test("does not download external resources", async () => {
-    const html = `
-      <html>
-        <body>
-          <img src="https://external.com/image.png">
-        </body>
-      </html>
-    `;
-
-    // Мокаем только главный запрос
-    nock("https://ru.hexlet.io").get("/courses").reply(200, html);
+    // Мокаем только страницу
+    nock("https://ru.hexlet.io")
+      .get("/courses")
+      .reply(
+        200,
+        `
+        <html>
+          <body>
+            <img src="https://external.com/image.png">
+          </body>
+        </html>
+      `,
+      );
 
     await pageLoader(pageUrl, tmpDir);
 
@@ -103,7 +101,7 @@ describe("pageLoader", () => {
   });
 
   test("throws error on non‑200 status", async () => {
-    // Мокаем ошибочный ответ
+    // Мокаем ошибку
     nock("https://ru.hexlet.io").get("/courses").reply(404);
 
     await expect(pageLoader(pageUrl, tmpDir)).rejects.toThrow(
