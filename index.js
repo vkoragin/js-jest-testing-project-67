@@ -48,7 +48,6 @@ export default async (pageUrl, outputDir = process.cwd()) => {
   let html;
   try {
     const response = await axios.get(pageUrl, {
-      maxRedirects: 0,
       validateStatus: null,
     });
     html = response.data;
