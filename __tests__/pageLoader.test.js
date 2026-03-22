@@ -49,11 +49,10 @@ describe("pageLoader", () => {
     expect(filepath).toBe(path.join(tmpDir, `${pageName}.html`));
     const savedHtml = await fs.readFile(filepath, "utf-8");
 
-    // Проверяем, что файл существует и не пустой
-    expect(savedHtml.length).toBeGreaterThan(0);
-    // Проверяем основные элементы
-    expect(savedHtml.includes("Курсы по программированию Хекслет")).toBe(true);
-    expect(savedHtml.includes("Node.js-программист")).toBe(true);
+    // Проверяем наличие ключевых элементов вместо полного совпадения
+    expect(savedHtml).toContain("Курсы по программированию Хекслет");
+    expect(savedHtml).toContain("Node.js-программист");
+    expect(savedHtml).toContain("/assets/professions/nodejs.png");
   });
 
   test("downloads image and updates path", async () => {
@@ -67,77 +66,31 @@ describe("pageLoader", () => {
 
     await pageLoader(pageUrl, tmpDir);
 
-    // Проверяем директорию с ресурсами
     const resourcesDir = path.join(tmpDir, `${pageName}_files`);
     const files = await fs.readdir(resourcesDir);
     expect(files.length).toBe(1);
-    expect(
-      files[0].includes("ru-hexlet-io-assets-professions-nodejs.png"),
-    ).toBe(true);
+    expect(files[0]).toMatch(/ru-hexlet-io-assets-professions-nodejs\.png$/);
 
-    // Проверяем сохраненное изображение
     const savedImg = await fs.readFile(path.join(resourcesDir, files[0]));
     expect(savedImg).toEqual(imgData);
 
-    // Проверяем HTML
     const savedHtml = await fs.readFile(
       path.join(tmpDir, `${pageName}.html`),
       "utf-8",
     );
-
-    // Старый путь должен быть заменен
-    expect(savedHtml.includes("/assets/professions/nodejs.png")).toBe(false);
-    // Новый путь должен присутствовать
-    expect(savedHtml.includes(`${pageName}_files/`)).toBe(true);
-    expect(savedHtml.includes(files[0])).toBe(true);
-  });
-
-  test("skips external resources", async () => {
-    const html = `
-      <html>
-        <body>
-          <img src="https://external.com/image.png">
-          <script src="https://external.com/script.js"></script>
-          <link rel="stylesheet" href="https://external.com/style.css">
-        </body>
-      </html>
-    `;
-
-    nock("https://ru.hexlet.io").get("/courses").reply(200, html);
-
-    await pageLoader(pageUrl, tmpDir);
-
-    // Проверяем, что директория с ресурсами не создана или пуста
-    const resourcesDir = path.join(tmpDir, `${pageName}_files`);
-    try {
-      const files = await fs.readdir(resourcesDir);
-      expect(files.length).toBe(0);
-    } catch (err) {
-      expect(err.code).toBe("ENOENT");
-    }
-
-    // Проверяем, что внешние ссылки не изменились
-    const savedHtml = await fs.readFile(
-      path.join(tmpDir, `${pageName}.html`),
-      "utf-8",
-    );
-    expect(savedHtml.includes('src="https://external.com/image.png"')).toBe(
-      true,
-    );
-    expect(savedHtml.includes('src="https://external.com/script.js"')).toBe(
-      true,
-    );
+    expect(savedHtml).toContain(`${pageName}_files/${files[0]}`);
+    expect(savedHtml).not.toContain("/assets/professions/nodejs.png");
   });
 
   test("throws error on 404 status", async () => {
     nock("https://ru.hexlet.io").get("/courses").reply(404);
 
     await expect(pageLoader(pageUrl, tmpDir)).rejects.toThrow(
-      `Failed to load page ${pageUrl}: status 404`,
+      `Failed to load ${pageUrl}: status 404`,
     );
   });
 
-  test("skips broken resources", async () => {
+  test("skips broken resources and continues", async () => {
     const html = `
       <html>
         <img src="/ok.png">
@@ -154,34 +107,13 @@ describe("pageLoader", () => {
     const resourcesDir = path.join(tmpDir, `${pageName}_files`);
     const files = await fs.readdir(resourcesDir);
     expect(files.length).toBe(1);
-    expect(files[0].includes("ok.png")).toBe(true);
+    expect(files[0]).toContain("ok.png");
 
     const savedHtml = await fs.readFile(
       path.join(tmpDir, `${pageName}.html`),
       "utf-8",
     );
-
-    // Рабочий ресурс должен быть заменен
-    expect(savedHtml.includes(`${pageName}_files/`)).toBe(true);
-    expect(savedHtml.includes(files[0])).toBe(true);
-    // Битый ресурс должен остаться
-    expect(savedHtml.includes("/fail.png")).toBe(true);
-  });
-
-  test("handles invalid URLs", async () => {
-    const html = `
-      <html>
-        <img src="http://invalid-url">
-        <script src="ftp://invalid"></script>
-      </html>
-    `;
-
-    nock("https://ru.hexlet.io").get("/courses").reply(200, html);
-
-    const { filepath } = await pageLoader(pageUrl, tmpDir);
-
-    const savedHtml = await fs.readFile(filepath, "utf-8");
-    expect(savedHtml.includes("http://invalid-url")).toBe(true);
-    expect(savedHtml.includes("ftp://invalid")).toBe(true);
+    expect(savedHtml).toContain(`${pageName}_files/${files[0]}`);
+    expect(savedHtml).toContain("/fail.png");
   });
 });

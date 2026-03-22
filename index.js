@@ -42,18 +42,28 @@ const isLocalResource = (resourceUrl, pageUrl) => {
   }
 };
 
+const handleAxiosError = (error, url) => {
+  if (error.response) {
+    throw new Error(`Failed to load ${url}: status ${error.response.status}`, {
+      cause: error,
+    });
+  }
+  if (error.request) {
+    throw new Error(`Failed to load ${url}: Network error`, { cause: error });
+  }
+  throw new Error(`Failed to load ${url}: ${error.message}`, { cause: error });
+};
+
 export default async (pageUrl, outputDir = process.cwd()) => {
   debug("Start loading page: %s", pageUrl);
 
-  const response = await axios.get(pageUrl);
-
-  if (response.status !== 200) {
-    throw new Error(
-      `Failed to load page ${pageUrl}: status ${response.status}`,
-    );
+  let html;
+  try {
+    const response = await axios.get(pageUrl);
+    html = response.data;
+  } catch (error) {
+    handleAxiosError(error, pageUrl);
   }
-
-  const html = response.data;
 
   const pageName = pageUrl
     .replace(/^https?:\/\//, "")
@@ -63,7 +73,14 @@ export default async (pageUrl, outputDir = process.cwd()) => {
   const htmlPath = path.join(outputDir, htmlFilename);
   const resourcesDirPath = path.join(outputDir, resourcesDirName);
 
-  await fs.mkdir(resourcesDirPath, { recursive: true });
+  try {
+    await fs.mkdir(resourcesDirPath, { recursive: true });
+  } catch (error) {
+    throw new Error(
+      `Cannot create directory ${resourcesDirPath}: ${error.message}`,
+      { cause: error },
+    );
+  }
 
   const $ = load(html);
 
@@ -85,7 +102,7 @@ export default async (pageUrl, outputDir = process.cwd()) => {
       .map((el) => ({ el, attr: "href" })),
   ];
 
-  await Promise.all(
+  const results = await Promise.allSettled(
     resourceElements.map(async ({ el, attr }) => {
       const src = $(el).attr(attr);
       if (!src) return;
@@ -103,17 +120,30 @@ export default async (pageUrl, outputDir = process.cwd()) => {
       const filename = generateFileName(resourceUrl);
       const filePath = path.join(resourcesDirPath, filename);
 
-      const resourceResponse = await axios.get(resourceUrl, {
+      const response = await axios.get(resourceUrl, {
         responseType: "arraybuffer",
       });
-      await fs.writeFile(filePath, resourceResponse.data);
+
+      await fs.writeFile(filePath, response.data);
       $(el).attr(attr, `${resourcesDirName}/${filename}`);
       debug("Downloaded resource: %s", resourceUrl);
     }),
   );
 
-  await fs.writeFile(htmlPath, $.html(), "utf-8");
-  debug("Saved HTML to %s", htmlPath);
+  results.forEach((result) => {
+    if (result.status === "rejected") {
+      debug("Failed to download resource: %s", result.reason.message);
+    }
+  });
+
+  try {
+    await fs.writeFile(htmlPath, $.html(), "utf-8");
+    debug("Saved HTML to %s", htmlPath);
+  } catch (error) {
+    throw new Error(`Cannot write HTML file ${htmlPath}: ${error.message}`, {
+      cause: error,
+    });
+  }
 
   return { filepath: htmlPath };
 };
