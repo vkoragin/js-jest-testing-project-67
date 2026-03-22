@@ -34,11 +34,7 @@ const isLocal = (resourceUrl, pageUrl) => {
 export default async (pageUrl, outputDir = process.cwd()) => {
   let response;
 
-  try {
-    response = await axios.get(pageUrl, { validateStatus: null });
-  } catch (e) {
-    throw new Error(`Failed to load page ${pageUrl}: Network error`);
-  }
+  response = await axios.get(pageUrl, { validateStatus: null });
 
   if (response.status !== 200) {
     throw new Error(
