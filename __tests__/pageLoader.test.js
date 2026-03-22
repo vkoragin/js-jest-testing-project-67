@@ -29,21 +29,14 @@ describe("pageLoader", () => {
   });
 
   afterAll(() => {
-    nock.enableNetConnect(); // Восстановить возможность сетевых соединений после тестов
+    nock.enableNetConnect(); // Восстановить возможность сетевых соединений
   });
 
   test("downloads page and saves HTML", async () => {
-    const html = "<html><body>Test page</body></html>";
-
-    // Мок главной страницы
-    nock("https://ru.hexlet.io").get("/courses").reply(200, html);
-
-    // Мокаем ресурсы, если есть
+    // Мок основной HTML
     nock("https://ru.hexlet.io")
-      .get("/assets/logo.png")
-      .reply(200, "image data")
-      .get("/styles/main.css")
-      .reply(200, "body { color: red; }");
+      .get("/courses")
+      .reply(200, "<html><body>Test page</body></html>");
 
     const { filepath } = await pageLoader(pageUrl, tmpDir);
 
@@ -62,11 +55,11 @@ describe("pageLoader", () => {
       </html>
     `;
 
-    // Мокаем основной запрос
+    // Мок главной страницы
     nock("https://ru.hexlet.io")
       .get("/courses")
       .reply(200, html)
-      // Мокаем ресурсы внутри страницы
+      // Мокаем ресурсы
       .get("/assets/logo.png")
       .reply(200, "image data")
       .get("/styles/main.css")
@@ -99,7 +92,7 @@ describe("pageLoader", () => {
       </html>
     `;
 
-    // Мокаем только основной запрос
+    // Мокаем только главный запрос
     nock("https://ru.hexlet.io").get("/courses").reply(200, html);
 
     await pageLoader(pageUrl, tmpDir);
@@ -110,6 +103,7 @@ describe("pageLoader", () => {
   });
 
   test("throws error on non‑200 status", async () => {
+    // Мокаем ошибочный ответ
     nock("https://ru.hexlet.io").get("/courses").reply(404);
 
     await expect(pageLoader(pageUrl, tmpDir)).rejects.toThrow(
