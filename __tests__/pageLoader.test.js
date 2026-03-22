@@ -29,7 +29,7 @@ describe("pageLoader", () => {
   });
 
   afterAll(() => {
-    nock.enableNetConnect();
+    nock.enableNetConnect(); // Восстановить возможность сетевых соединений после тестов
   });
 
   test("downloads page and saves HTML", async () => {
@@ -54,9 +54,11 @@ describe("pageLoader", () => {
       </html>
     `;
 
+    // Мокаем основной запрос
     nock("https://ru.hexlet.io")
       .get("/courses")
       .reply(200, html)
+      // Мокаем ресурсы внутри страницы
       .get("/assets/logo.png")
       .reply(200, "image data")
       .get("/styles/main.css")
@@ -89,6 +91,7 @@ describe("pageLoader", () => {
       </html>
     `;
 
+    // Мокаем только основной запрос
     nock("https://ru.hexlet.io").get("/courses").reply(200, html);
 
     await pageLoader(pageUrl, tmpDir);
