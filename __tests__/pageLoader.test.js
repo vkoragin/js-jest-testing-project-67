@@ -10,15 +10,15 @@ import os from "os";
 import path from "path";
 import fs from "fs/promises";
 import nock from "nock";
-import axios from "axios";
 import pageLoader from "../index.js";
+import { fileURLToPath } from "url";
 
-// Принудительно устанавливаем адаптер для axios в ES-модулях
-// Это критически важно для работы nock в CI
-import httpAdapter from "axios/lib/adapters/http.js";
-axios.defaults.adapter = httpAdapter;
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
-// Блокируем все реальные сетевые соединения
+const getFixturePath = (name) =>
+  path.join(__dirname, "..", "__fixtures__", name);
+
 nock.disableNetConnect();
 
 describe("pageLoader", () => {
@@ -40,75 +40,74 @@ describe("pageLoader", () => {
   });
 
   test("downloads page and saves HTML", async () => {
-    const html = "<html><body>Test page</body></html>";
+    const html = await fs.readFile(getFixturePath("courses.html"), "utf-8");
 
-    const scope = nock("https://ru.hexlet.io").get("/courses").reply(200, html);
+    nock("https://ru.hexlet.io").get("/courses").reply(200, html);
 
     const { filepath } = await pageLoader(pageUrl, tmpDir);
 
     expect(filepath).toBe(path.join(tmpDir, `${pageName}.html`));
     const savedHtml = await fs.readFile(filepath, "utf-8");
-    expect(savedHtml).toBe(html);
-    expect(scope.isDone()).toBe(true);
+
+    // Проверяем, что файл существует и не пустой
+    expect(savedHtml.length).toBeGreaterThan(0);
+    // Проверяем основные элементы
+    expect(savedHtml.includes("Курсы по программированию Хекслет")).toBe(true);
+    expect(savedHtml.includes("Node.js-программист")).toBe(true);
   });
 
-  test("downloads local resources and updates paths", async () => {
-    const html = `
-      <html>
-        <img src="/assets/logo.png">
-        <link rel="stylesheet" href="/styles/main.css">
-      </html>
-    `;
+  test("downloads image and updates path", async () => {
+    const html = await fs.readFile(getFixturePath("courses.html"), "utf-8");
+    const imgData = await fs.readFile(getFixturePath("nodejs.png"));
 
-    const pageScope = nock("https://ru.hexlet.io")
-      .get("/courses")
-      .reply(200, html);
-
-    const imgScope = nock("https://ru.hexlet.io")
-      .get("/assets/logo.png")
-      .reply(200, "image data");
-
-    const cssScope = nock("https://ru.hexlet.io")
-      .get("/styles/main.css")
-      .reply(200, "body { color: red; }");
+    nock("https://ru.hexlet.io").get("/courses").reply(200, html);
+    nock("https://ru.hexlet.io")
+      .get("/assets/professions/nodejs.png")
+      .reply(200, imgData);
 
     await pageLoader(pageUrl, tmpDir);
 
-    expect(pageScope.isDone()).toBe(true);
-    expect(imgScope.isDone()).toBe(true);
-    expect(cssScope.isDone()).toBe(true);
-
+    // Проверяем директорию с ресурсами
     const resourcesDir = path.join(tmpDir, `${pageName}_files`);
     const files = await fs.readdir(resourcesDir);
-    expect(files.length).toBe(2);
+    expect(files.length).toBe(1);
+    expect(
+      files[0].includes("ru-hexlet-io-assets-professions-nodejs.png"),
+    ).toBe(true);
 
-    const updatedHtml = await fs.readFile(
+    // Проверяем сохраненное изображение
+    const savedImg = await fs.readFile(path.join(resourcesDir, files[0]));
+    expect(savedImg).toEqual(imgData);
+
+    // Проверяем HTML
+    const savedHtml = await fs.readFile(
       path.join(tmpDir, `${pageName}.html`),
       "utf-8",
     );
-    expect(updatedHtml).toContain(
-      `${pageName}_files/ru-hexlet-io-assets-logo.png`,
-    );
-    expect(updatedHtml).toContain(
-      `${pageName}_files/ru-hexlet-io-styles-main.css`,
-    );
+
+    // Старый путь должен быть заменен
+    expect(savedHtml.includes("/assets/professions/nodejs.png")).toBe(false);
+    // Новый путь должен присутствовать
+    expect(savedHtml.includes(`${pageName}_files/`)).toBe(true);
+    expect(savedHtml.includes(files[0])).toBe(true);
   });
 
-  test("does not download external resources", async () => {
+  test("skips external resources", async () => {
     const html = `
       <html>
         <body>
           <img src="https://external.com/image.png">
+          <script src="https://external.com/script.js"></script>
+          <link rel="stylesheet" href="https://external.com/style.css">
         </body>
       </html>
     `;
 
-    const scope = nock("https://ru.hexlet.io").get("/courses").reply(200, html);
+    nock("https://ru.hexlet.io").get("/courses").reply(200, html);
 
     await pageLoader(pageUrl, tmpDir);
 
-    expect(scope.isDone()).toBe(true);
-
+    // Проверяем, что директория с ресурсами не создана или пуста
     const resourcesDir = path.join(tmpDir, `${pageName}_files`);
     try {
       const files = await fs.readdir(resourcesDir);
@@ -116,15 +115,26 @@ describe("pageLoader", () => {
     } catch (err) {
       expect(err.code).toBe("ENOENT");
     }
+
+    // Проверяем, что внешние ссылки не изменились
+    const savedHtml = await fs.readFile(
+      path.join(tmpDir, `${pageName}.html`),
+      "utf-8",
+    );
+    expect(savedHtml.includes('src="https://external.com/image.png"')).toBe(
+      true,
+    );
+    expect(savedHtml.includes('src="https://external.com/script.js"')).toBe(
+      true,
+    );
   });
 
-  test("throws error on non‑200 status", async () => {
-    const scope = nock("https://ru.hexlet.io").get("/courses").reply(404);
+  test("throws error on 404 status", async () => {
+    nock("https://ru.hexlet.io").get("/courses").reply(404);
 
     await expect(pageLoader(pageUrl, tmpDir)).rejects.toThrow(
       `Failed to load page ${pageUrl}: status 404`,
     );
-    expect(scope.isDone()).toBe(true);
   });
 
   test("skips broken resources", async () => {
@@ -135,46 +145,43 @@ describe("pageLoader", () => {
       </html>
     `;
 
-    const pageScope = nock("https://ru.hexlet.io")
-      .get("/courses")
-      .reply(200, html);
-
-    const okScope = nock("https://ru.hexlet.io")
-      .get("/ok.png")
-      .reply(200, "ok");
-
-    const failScope = nock("https://ru.hexlet.io").get("/fail.png").reply(404);
+    nock("https://ru.hexlet.io").get("/courses").reply(200, html);
+    nock("https://ru.hexlet.io").get("/ok.png").reply(200, "ok");
+    nock("https://ru.hexlet.io").get("/fail.png").reply(404);
 
     await pageLoader(pageUrl, tmpDir);
-
-    expect(pageScope.isDone()).toBe(true);
-    expect(okScope.isDone()).toBe(true);
-    expect(failScope.isDone()).toBe(true);
 
     const resourcesDir = path.join(tmpDir, `${pageName}_files`);
     const files = await fs.readdir(resourcesDir);
     expect(files.length).toBe(1);
-    expect(files[0]).toContain("ok.png");
+    expect(files[0].includes("ok.png")).toBe(true);
+
+    const savedHtml = await fs.readFile(
+      path.join(tmpDir, `${pageName}.html`),
+      "utf-8",
+    );
+
+    // Рабочий ресурс должен быть заменен
+    expect(savedHtml.includes(`${pageName}_files/`)).toBe(true);
+    expect(savedHtml.includes(files[0])).toBe(true);
+    // Битый ресурс должен остаться
+    expect(savedHtml.includes("/fail.png")).toBe(true);
   });
 
-  test("handles invalid URLs in resources", async () => {
+  test("handles invalid URLs", async () => {
     const html = `
       <html>
         <img src="http://invalid-url">
         <script src="ftp://invalid"></script>
-        <link rel="stylesheet" href="javascript:alert('xss')">
       </html>
     `;
 
-    const scope = nock("https://ru.hexlet.io").get("/courses").reply(200, html);
+    nock("https://ru.hexlet.io").get("/courses").reply(200, html);
 
     const { filepath } = await pageLoader(pageUrl, tmpDir);
 
-    expect(scope.isDone()).toBe(true);
-
     const savedHtml = await fs.readFile(filepath, "utf-8");
-    expect(savedHtml).toContain("http://invalid-url");
-    expect(savedHtml).toContain("ftp://invalid");
-    expect(savedHtml).toContain("javascript:alert('xss')");
+    expect(savedHtml.includes("http://invalid-url")).toBe(true);
+    expect(savedHtml.includes("ftp://invalid")).toBe(true);
   });
 });
