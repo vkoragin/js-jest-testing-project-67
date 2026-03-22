@@ -10,10 +10,8 @@ import os from "os";
 import path from "path";
 import fs from "fs/promises";
 import nock from "nock";
-import axios from "axios";
 import pageLoader from "../index.js";
 import { fileURLToPath } from "url";
-import { URL } from "url";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -21,43 +19,11 @@ const __dirname = path.dirname(__filename);
 const getFixturePath = (name) =>
   path.join(__dirname, "..", "__fixtures__", name);
 
-// Настройка axios для работы с nock
-import http from "http";
-import https from "https";
-
-const httpAdapter = (config) => {
-  return new Promise((resolve, reject) => {
-    const url = new URL(config.url);
-    const options = {
-      hostname: url.hostname,
-      port: url.port || (url.protocol === "https:" ? 443 : 80),
-      path: url.pathname + url.search,
-      method: config.method,
-      headers: config.headers,
-    };
-
-    const protocol = url.protocol === "https:" ? https : http;
-    const req = protocol.request(options, (res) => {
-      let data = "";
-      res.on("data", (chunk) => (data += chunk));
-      res.on("end", () => {
-        resolve({
-          data,
-          status: res.statusCode,
-          headers: res.headers,
-          config,
-        });
-      });
-    });
-
-    req.on("error", reject);
-    if (config.data) req.write(config.data);
-    req.end();
-  });
-};
-
-axios.defaults.adapter = httpAdapter;
+// Просто отключаем реальные запросы
 nock.disableNetConnect();
+
+// Используем стандартный адаптер axios
+// Не нужно создавать кастомный адаптер
 
 describe("pageLoader", () => {
   let tmpDir;
