@@ -3,89 +3,50 @@ import fs from "fs/promises";
 import path from "path";
 import { load } from "cheerio";
 import { URL } from "url";
-import crypto from "crypto";
-import debugLib from "debug";
 
-const debug = debugLib("page-loader");
+const getPageName = (url) =>
+  url.replace(/^https?:\/\//, "").replace(/[^a-zA-Z0-9]/g, "-");
 
-const MAX_FILENAME_LENGTH = 200;
-
-const sanitizeFilename = (filename) =>
-  filename
-    .replace(/[<>:"/\\|?*]/g, "-")
-    .replace(/\s+/g, "-")
-    .replace(/-+/g, "-")
-    .replace(/^[.-]+|[.-]+$/g, "");
-
-const generateFileName = (url) => {
-  const urlObj = new URL(url);
-  const ext = path.extname(urlObj.pathname) || ".html";
-  const pathWithoutExt = urlObj.pathname.replace(/\.[^/.]+$/, "");
-  const pathParts = pathWithoutExt.split("/").filter(Boolean);
-  const hostPart = urlObj.hostname.replace(/\./g, "-");
-  const pathPart = pathParts.join("-");
-  let filename = `${hostPart}${pathPart ? "-" + pathPart : ""}${ext}`;
-  if (filename.length > MAX_FILENAME_LENGTH) {
-    const hash = crypto.createHash("md5").update(url).digest("hex").slice(0, 8);
-    filename = `${hostPart}-${hash}${ext}`;
-  }
-  return sanitizeFilename(filename);
+const getFileName = (url) => {
+  const { pathname, hostname } = new URL(url);
+  const name = `${hostname}${pathname}`.replace(/[^a-zA-Z0-9]/g, "-");
+  return name.endsWith("-") ? `${name}index.html` : `${name}.html`;
 };
 
-const isLocalResource = (resourceUrl, pageUrl) => {
+const isLocal = (resourceUrl, pageUrl) => {
   try {
-    const resourceHost = new URL(resourceUrl, pageUrl).hostname;
-    const pageHost = new URL(pageUrl).hostname;
-    return resourceHost === pageHost;
+    return new URL(resourceUrl, pageUrl).hostname === new URL(pageUrl).hostname;
   } catch {
     return false;
   }
 };
 
 export default async (pageUrl, outputDir = process.cwd()) => {
-  debug("Start loading page: %s", pageUrl);
+  let response;
 
-  let html;
   try {
-    const response = await axios.get(pageUrl, {
-      validateStatus: null,
-    });
-    html = response.data;
-    if (response.status !== 200) {
-      throw new Error(
-        `Failed to load page ${pageUrl}: status ${response.status}`,
-      );
-    }
-  } catch (error) {
-    if (error.response) {
-      throw new Error(
-        `Failed to load page ${pageUrl}: status ${error.response.status}`,
-        { cause: error },
-      );
-    }
-    if (error.request) {
-      throw new Error(`Failed to load page ${pageUrl}: Network error`, {
-        cause: error,
-      });
-    }
-    throw new Error(`Failed to load page ${pageUrl}: ${error.message}`, {
-      cause: error,
-    });
+    response = await axios.get(pageUrl, { validateStatus: null });
+  } catch (e) {
+    throw new Error(`Failed to load page ${pageUrl}: Network error`);
   }
 
-  const pageName = pageUrl
-    .replace(/^https?:\/\//, "")
-    .replace(/[^a-zA-Z0-9]/g, "-");
-  const htmlFilename = `${pageName}.html`;
-  const resourcesDirName = `${pageName}_files`;
-  const htmlPath = path.join(outputDir, htmlFilename);
-  const resourcesDirPath = path.join(outputDir, resourcesDirName);
+  if (response.status !== 200) {
+    throw new Error(
+      `Failed to load page ${pageUrl}: status ${response.status}`,
+    );
+  }
 
-  await fs.mkdir(resourcesDirPath, { recursive: true });
+  const html = response.data;
+
+  const pageName = getPageName(pageUrl);
+  const htmlPath = path.join(outputDir, `${pageName}.html`);
+  const resourcesDir = path.join(outputDir, `${pageName}_files`);
+
+  await fs.mkdir(resourcesDir, { recursive: true });
 
   const $ = load(html);
 
-  const resourceElements = [
+  const resources = [
     ...$("img")
       .toArray()
       .map((el) => ({ el, attr: "src" })),
@@ -95,16 +56,10 @@ export default async (pageUrl, outputDir = process.cwd()) => {
     ...$("link[rel='stylesheet']")
       .toArray()
       .map((el) => ({ el, attr: "href" })),
-    ...$("link[rel='canonical']")
-      .toArray()
-      .map((el) => ({ el, attr: "href" })),
-    ...$("link[rel='icon']")
-      .toArray()
-      .map((el) => ({ el, attr: "href" })),
   ];
 
   await Promise.all(
-    resourceElements.map(async ({ el, attr }) => {
+    resources.map(async ({ el, attr }) => {
       const src = $(el).attr(attr);
       if (!src) return;
 
@@ -112,34 +67,31 @@ export default async (pageUrl, outputDir = process.cwd()) => {
       try {
         resourceUrl = new URL(src, pageUrl).href;
       } catch {
-        debug("Skipping invalid URL: %s", src);
         return;
       }
 
-      if (!isLocalResource(resourceUrl, pageUrl)) return;
+      if (!isLocal(resourceUrl, pageUrl)) return;
 
-      const filename = generateFileName(resourceUrl);
-      const filePath = path.join(resourcesDirPath, filename);
+      const filename = getFileName(resourceUrl);
+      const filepath = path.join(resourcesDir, filename);
 
       try {
-        const response = await axios.get(resourceUrl, {
+        const res = await axios.get(resourceUrl, {
           responseType: "arraybuffer",
+          validateStatus: null,
         });
-        await fs.writeFile(filePath, response.data);
-        $(el).attr(attr, `${resourcesDirName}/${filename}`);
-        debug("Downloaded resource: %s", resourceUrl);
-      } catch (err) {
-        debug("Failed to download resource %s: %s", resourceUrl, err.message);
+
+        if (res.status !== 200) return;
+
+        await fs.writeFile(filepath, res.data);
+        $(el).attr(attr, `${pageName}_files/${filename}`);
+      } catch {
+        // игнорируем ошибки ресурсов
       }
     }),
   );
 
-  try {
-    await fs.writeFile(htmlPath, $.html(), "utf-8");
-    debug("Saved HTML to %s", htmlPath);
-  } catch (err) {
-    throw new Error(`Cannot write HTML file: ${err.message}`, { cause: err });
-  }
+  await fs.writeFile(htmlPath, $.html(), "utf-8");
 
   return { filepath: htmlPath };
 };
