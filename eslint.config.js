@@ -21,22 +21,28 @@ export default [
     rules: {
       'no-console': 'off',
 
+      // Правила для отступов (используем 2 пробела)
+      indent: ['error', 2],
+
       // Правила для кавычек
-      quotes: ['error', 'single'], // одинарные кавычки
-      'quote-props': ['error', 'as-needed'], // кавычки для свойств объектов только когда нужно
+      quotes: ['error', 'single'],
+      'quote-props': ['error', 'as-needed'],
 
       // Правила для точек с запятой
-      semi: ['error', 'never'], // без точек с запятой
-      'no-extra-semi': 'error', // лишние точки с запятой
+      semi: ['error', 'never'],
+      'no-extra-semi': 'error',
 
-      // Правила для стрелочных функций - отключаем требование скобок
-      'arrow-parens': ['error', 'as-needed'], // скобки только когда нужны (1 аргумент - без скобок)
+      // Правила для стрелочных функций
+      // Нужны скобки если:
+      // - больше одного аргумента
+      // - тело функции в фигурных скобках
+      'arrow-parens': ['error', 'always'],
 
       // Правила для фигурных скобок
-      'brace-style': ['error', 'stroustrup'], // стиль фигурных скобок (else на новой строке)
+      'brace-style': ['error', 'stroustrup'],
 
       // Запятые в конце
-      'comma-dangle': ['error', 'always-multiline'], // запятая в конце строк в многострочных объектах
+      'comma-dangle': ['error', 'always-multiline'],
     },
   },
 ]
