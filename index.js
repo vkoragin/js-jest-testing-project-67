@@ -47,10 +47,7 @@ export default async (pageUrl, outputDir = process.cwd()) => {
 
   let html;
   try {
-    const response = await axios.get(pageUrl, {
-      maxRedirects: 0,
-      validateStatus: null,
-    });
+    const response = await axios.get(pageUrl);
     html = response.data;
     if (response.status !== 200) {
       throw new Error(
