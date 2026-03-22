@@ -9,7 +9,7 @@
   "scripts": {
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
-    "test": "cross-env NODE_OPTIONS=--experimental-vm-modules jest"
+    "test": ""
   },
   "repository": {
     "type": "git",
