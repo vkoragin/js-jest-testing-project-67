@@ -35,7 +35,15 @@ describe("pageLoader", () => {
   test("downloads page and saves HTML", async () => {
     const html = "<html><body>Test page</body></html>";
 
+    // Мок главной страницы
     nock("https://ru.hexlet.io").get("/courses").reply(200, html);
+
+    // Мокаем ресурсы, если есть
+    nock("https://ru.hexlet.io")
+      .get("/assets/logo.png")
+      .reply(200, "image data")
+      .get("/styles/main.css")
+      .reply(200, "body { color: red; }");
 
     const { filepath } = await pageLoader(pageUrl, tmpDir);
 
