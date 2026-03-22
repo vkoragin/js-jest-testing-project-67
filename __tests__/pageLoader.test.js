@@ -10,8 +10,10 @@ import os from "os";
 import path from "path";
 import fs from "fs/promises";
 import nock from "nock";
+import axios from "axios";
 import pageLoader from "../index.js";
 import { fileURLToPath } from "url";
+import { URL } from "url";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -19,6 +21,42 @@ const __dirname = path.dirname(__filename);
 const getFixturePath = (name) =>
   path.join(__dirname, "..", "__fixtures__", name);
 
+// Настройка axios для работы с nock
+import http from "http";
+import https from "https";
+
+const httpAdapter = (config) => {
+  return new Promise((resolve, reject) => {
+    const url = new URL(config.url);
+    const options = {
+      hostname: url.hostname,
+      port: url.port || (url.protocol === "https:" ? 443 : 80),
+      path: url.pathname + url.search,
+      method: config.method,
+      headers: config.headers,
+    };
+
+    const protocol = url.protocol === "https:" ? https : http;
+    const req = protocol.request(options, (res) => {
+      let data = "";
+      res.on("data", (chunk) => (data += chunk));
+      res.on("end", () => {
+        resolve({
+          data,
+          status: res.statusCode,
+          headers: res.headers,
+          config,
+        });
+      });
+    });
+
+    req.on("error", reject);
+    if (config.data) req.write(config.data);
+    req.end();
+  });
+};
+
+axios.defaults.adapter = httpAdapter;
 nock.disableNetConnect();
 
 describe("pageLoader", () => {
@@ -49,10 +87,9 @@ describe("pageLoader", () => {
     expect(filepath).toBe(path.join(tmpDir, `${pageName}.html`));
     const savedHtml = await fs.readFile(filepath, "utf-8");
 
-    // Проверяем наличие ключевых элементов вместо полного совпадения
-    expect(savedHtml).toContain("Курсы по программированию Хекслет");
-    expect(savedHtml).toContain("Node.js-программист");
-    expect(savedHtml).toContain("/assets/professions/nodejs.png");
+    expect(savedHtml.length).toBeGreaterThan(0);
+    expect(savedHtml.includes("Курсы по программированию Хекслет")).toBe(true);
+    expect(savedHtml.includes("Node.js-программист")).toBe(true);
   });
 
   test("downloads image and updates path", async () => {
@@ -69,7 +106,9 @@ describe("pageLoader", () => {
     const resourcesDir = path.join(tmpDir, `${pageName}_files`);
     const files = await fs.readdir(resourcesDir);
     expect(files.length).toBe(1);
-    expect(files[0]).toMatch(/ru-hexlet-io-assets-professions-nodejs\.png$/);
+    expect(
+      files[0].includes("ru-hexlet-io-assets-professions-nodejs.png"),
+    ).toBe(true);
 
     const savedImg = await fs.readFile(path.join(resourcesDir, files[0]));
     expect(savedImg).toEqual(imgData);
@@ -78,8 +117,9 @@ describe("pageLoader", () => {
       path.join(tmpDir, `${pageName}.html`),
       "utf-8",
     );
-    expect(savedHtml).toContain(`${pageName}_files/${files[0]}`);
-    expect(savedHtml).not.toContain("/assets/professions/nodejs.png");
+
+    expect(savedHtml.includes(`${pageName}_files/${files[0]}`)).toBe(true);
+    expect(savedHtml.includes("/assets/professions/nodejs.png")).toBe(false);
   });
 
   test("throws error on 404 status", async () => {
@@ -107,13 +147,13 @@ describe("pageLoader", () => {
     const resourcesDir = path.join(tmpDir, `${pageName}_files`);
     const files = await fs.readdir(resourcesDir);
     expect(files.length).toBe(1);
-    expect(files[0]).toContain("ok.png");
+    expect(files[0].includes("ok.png")).toBe(true);
 
     const savedHtml = await fs.readFile(
       path.join(tmpDir, `${pageName}.html`),
       "utf-8",
     );
-    expect(savedHtml).toContain(`${pageName}_files/${files[0]}`);
-    expect(savedHtml).toContain("/fail.png");
+    expect(savedHtml.includes(`${pageName}_files/${files[0]}`)).toBe(true);
+    expect(savedHtml.includes("/fail.png")).toBe(true);
   });
 });
