@@ -21,6 +21,13 @@
     "url": "https://github.com/vkoragin/js-jest-testing-project-67/issues"
   },
   "homepage": "https://github.com/vkoragin/js-jest-testing-project-67#readme",
+  "jest": {
+    "testEnvironment": "node",
+    "transform": {},
+    "moduleNameMapper": {
+      "^(\\.{1,2}/.*)\\.js$": "$1"
+    }
+  },
   "devDependencies": {
     "@babel/core": "^7.29.0",
     "@babel/node": "^7.29.0",
