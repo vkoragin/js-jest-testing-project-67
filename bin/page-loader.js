@@ -11,7 +11,8 @@ program
       const { filepath } = await pageLoader(url, options.output)
       console.log(`Page successfully loaded to: ${filepath}`)
       process.exit(0)
-    } catch (error) {
+    }
+ catch (error) {
       console.error(`Error loading page: ${error.message}`)
       process.exit(1)
     }
