@@ -10,14 +10,14 @@ const debug = debugLib('page-loader')
 
 const MAX_FILENAME_LENGTH = 200
 
-const sanitizeFilename = filename =>
+const sanitizeFilename = (filename) =>
   filename
     .replace(/[<>:"/\\|?*]/g, '-')
     .replace(/\s+/g, '-')
     .replace(/-+/g, '-')
     .replace(/^[.-]+|[.-]+$/g, '')
 
-const generateFileName = url => {
+const generateFileName = (url) => {
   const urlObj = new URL(url)
   const ext = path.extname(urlObj.pathname) || '.html'
   const pathWithoutExt = urlObj.pathname.replace(/\.[^/.]+$/, '')
@@ -46,13 +46,13 @@ const isLocalResource = (resourceUrl, pageUrl) => {
 const handleAxiosError = (error, url) => {
   if (error.response) {
     throw new Error(`Failed to load ${url}: status ${error.response.status}`, {
-      'cause': error,
+      cause: error,
     })
   }
   if (error.request) {
-    throw new Error(`Failed to load ${url}: Network error`, { 'cause': error })
+    throw new Error(`Failed to load ${url}: Network error`, { cause: error })
   }
-  throw new Error(`Failed to load ${url}: ${error.message}`, { 'cause': error })
+  throw new Error(`Failed to load ${url}: ${error.message}`, { cause: error })
 }
 
 export default async (pageUrl, outputDir = process.cwd()) => {
@@ -76,12 +76,12 @@ export default async (pageUrl, outputDir = process.cwd()) => {
   const resourcesDirPath = path.join(outputDir, resourcesDirName)
 
   try {
-    await fs.mkdir(resourcesDirPath, { 'recursive': true })
+    await fs.mkdir(resourcesDirPath, { recursive: true })
   }
   catch (error) {
     throw new Error(
       `Cannot create directory ${resourcesDirPath}: ${error.message}`,
-      { 'cause': error },
+      { cause: error },
     )
   }
 
@@ -90,19 +90,19 @@ export default async (pageUrl, outputDir = process.cwd()) => {
   const resourceElements = [
     ...$('img')
       .toArray()
-      .map(el => ({ el, 'attr': 'src' })),
+      .map((el) => ({ el, attr: 'src' })),
     ...$('script[src]')
       .toArray()
-      .map(el => ({ el, 'attr': 'src' })),
+      .map((el) => ({ el, attr: 'src' })),
     ...$('link[rel=\'stylesheet\']')
       .toArray()
-      .map(el => ({ el, 'attr': 'href' })),
+      .map((el) => ({ el, attr: 'href' })),
     ...$('link[rel=\'canonical\']')
       .toArray()
-      .map(el => ({ el, 'attr': 'href' })),
+      .map((el) => ({ el, attr: 'href' })),
     ...$('link[rel=\'icon\']')
       .toArray()
-      .map(el => ({ el, 'attr': 'href' })),
+      .map((el) => ({ el, attr: 'href' })),
   ]
 
   const results = await Promise.allSettled(
@@ -125,7 +125,7 @@ export default async (pageUrl, outputDir = process.cwd()) => {
       const filePath = path.join(resourcesDirPath, filename)
 
       const response = await axios.get(resourceUrl, {
-        'responseType': 'arraybuffer',
+        responseType: 'arraybuffer',
       })
 
       await fs.writeFile(filePath, response.data)
@@ -134,7 +134,7 @@ export default async (pageUrl, outputDir = process.cwd()) => {
     }),
   )
 
-  results.forEach(result => {
+  results.forEach((result) => {
     if (result.status === 'rejected') {
       debug('Failed to download resource: %s', result.reason.message)
     }
@@ -146,9 +146,9 @@ export default async (pageUrl, outputDir = process.cwd()) => {
   }
   catch (error) {
     throw new Error(`Cannot write HTML file ${htmlPath}: ${error.message}`, {
-      'cause': error,
+      cause: error,
     })
   }
 
-  return { 'filepath': htmlPath }
+  return { filepath: htmlPath }
 }

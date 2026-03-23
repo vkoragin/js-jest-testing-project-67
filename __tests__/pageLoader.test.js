@@ -16,7 +16,7 @@ import { fileURLToPath } from 'url'
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 
-const getFixturePath = name =>
+const getFixturePath = (name) =>
   path.join(__dirname, '..', '__fixtures__', name)
 
 nock.disableNetConnect()
@@ -32,7 +32,7 @@ describe('pageLoader', () => {
 
   afterEach(async () => {
     nock.cleanAll()
-    await fs.rm(tmpDir, { 'recursive': true, 'force': true })
+    await fs.rm(tmpDir, { recursive: true, force: true })
   })
 
   afterAll(() => {

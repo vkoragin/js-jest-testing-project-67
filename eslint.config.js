@@ -3,39 +3,39 @@ import js from '@eslint/js'
 export default [
   js.configs.recommended,
   {
-    'files': ['**/*.js'],
-    'languageOptions': {
-      'ecmaVersion': 'latest',
-      'sourceType': 'module',
-      'globals': {
-        'process': 'readonly',
-        'console': 'readonly',
-        'test': 'readonly',
-        'expect': 'readonly',
-        'beforeEach': 'readonly',
-        'afterEach': 'readonly',
-        'describe': 'readonly',
-        'jest': 'readonly',
+    files: ['**/*.js'],
+    languageOptions: {
+      ecmaVersion: 'latest',
+      sourceType: 'module',
+      globals: {
+        process: 'readonly',
+        console: 'readonly',
+        test: 'readonly',
+        expect: 'readonly',
+        beforeEach: 'readonly',
+        afterEach: 'readonly',
+        describe: 'readonly',
+        jest: 'readonly',
       },
     },
-    'rules': {
+    rules: {
       'no-console': 'off',
 
       // Отступы
-      'indent': ['error', 2],
+      indent: ['error', 2],
 
-      // Кавычки для свойств объектов - всегда использовать кавычки
-      'quote-props': ['error', 'always'],
+      // Кавычки для свойств объектов - только когда нужны (есть спецсимволы или начинаются с цифры)
+      'quote-props': ['error', 'as-needed'],
 
       // Кавычки для строк
-      'quotes': ['error', 'single'],
+      quotes: ['error', 'single'],
 
       // Точки с запятой - не используем
-      'semi': ['error', 'never'],
+      semi: ['error', 'never'],
       'no-extra-semi': 'error',
 
-      // Стрелочные функции - скобки только когда нужны
-      'arrow-parens': ['error', 'as-needed'],
+      // Стрелочные функции - всегда со скобками (чтобы не было путаницы)
+      'arrow-parens': ['error', 'always'],
 
       // Фигурные скобки
       'brace-style': ['error', 'stroustrup'],
