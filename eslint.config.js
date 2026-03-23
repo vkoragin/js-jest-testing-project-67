@@ -3,48 +3,47 @@ import js from '@eslint/js'
 export default [
   js.configs.recommended,
   {
-    files: ['**/*.js'],
-    languageOptions: {
-      ecmaVersion: 'latest',
-      sourceType: 'module',
-      globals: {
-        process: 'readonly',
-        console: 'readonly',
-        test: 'readonly',
-        expect: 'readonly',
-        beforeEach: 'readonly',
-        afterEach: 'readonly',
-        describe: 'readonly',
-        jest: 'readonly',
+    'files': ['**/*.js'],
+    'languageOptions': {
+      'ecmaVersion': 'latest',
+      'sourceType': 'module',
+      'globals': {
+        'process': 'readonly',
+        'console': 'readonly',
+        'test': 'readonly',
+        'beforeEach': 'readonly',
+        'afterEach': 'readonly',
+        'describe': 'readonly',
+        'jest': 'readonly',
       },
     },
-    rules: {
+    'rules': {
       'no-console': 'off',
 
-      // Отступы — 2 пробела
-      indent: ['error', 2],
+      // Отступы
+      'indent': ['error', 2],
 
-      // Кавычки для строк — одинарные
-      quotes: ['error', 'single'],
+      // Кавычки для строк
+      'quotes': ['error', 'single'],
 
-      // Точки с запятой — не используем
-      semi: ['error', 'never'],
+      // Точки с запятой - не используем
+      'semi': ['error', 'never'],
       'no-extra-semi': 'error',
 
-      // Стрелочные функции — ВСЕГДА с фигурными скобками и return
-      'arrow-body-style': ['error', 'always'],
+      // Стрелочные функции
+      'arrow-parens': 'off',
 
-      // Стрелочные функции — всегда со скобками вокруг аргументов
-      'arrow-parens': ['error', 'always'],
-
-      // Фигурные скобки — стиль Stroustrup
+      // Фигурные скобки
       'brace-style': ['error', 'stroustrup'],
 
-      // Запятые в конце — только для многострочных конструкций
+      // Запятые в конце
       'comma-dangle': ['error', 'always-multiline'],
-
-      // Кавычки для свойств объектов — только когда нужны
-      'quote-props': ['error', 'as-needed'],
+    },
+  },
+  {
+    'files': ['eslint.config.js'], // только для файла конфигурации
+    'rules': {
+      'quote-props': ['error', 'always'], // всегда с кавычками
     },
   },
 ]
