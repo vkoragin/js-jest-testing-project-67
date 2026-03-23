@@ -21,13 +21,10 @@ export default [
     rules: {
       'no-console': 'off',
 
-      // Отступы
+      // Отступы — 2 пробела
       indent: ['error', 2],
 
-      // Кавычки для свойств объектов — только когда нужны
-      'quote-props': ['error', 'as-needed'],
-
-      // Кавычки для строк
+      // Кавычки для строк — одинарные
       quotes: ['error', 'single'],
 
       // Точки с запятой — не используем
@@ -37,11 +34,14 @@ export default [
       // Стрелочные функции — всегда со скобками
       'arrow-parens': ['error', 'always'],
 
-      // Фигурные скобки
+      // Фигурные скобки — стиль Stroustrup
       'brace-style': ['error', 'stroustrup'],
 
-      // Запятые в конце
+      // Запятые в конце — только для многострочных конструкций
       'comma-dangle': ['error', 'always-multiline'],
+
+      // Кавычки для свойств объектов — только когда нужны
+      'quote-props': ['error', 'as-needed'],
     },
   },
 ]
