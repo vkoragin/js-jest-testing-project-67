@@ -33,7 +33,7 @@ describe('pageLoader', () => {
 
   afterEach(async () => {
     nock.cleanAll()
-    await fs.rm(tmpDir, { 'recursive': true, 'force': true })
+    await fs.rm(tmpDir, { recursive: true, force: true })
   })
 
   afterAll(() => {
