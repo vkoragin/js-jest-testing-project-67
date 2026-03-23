@@ -21,16 +21,6 @@ export default [
     rules: {
       'no-console': 'off',
 
-      // Отступы — 2 пробела
-      indent: ['error', 2],
-
-      // Кавычки для строк — одинарные
-      quotes: ['error', 'single'],
-
-      // Точки с запятой — не используем
-      semi: ['error', 'never'],
-      'no-extra-semi': 'error',
-
       // Стрелочные функции — ВСЕГДА со скобками вокруг аргументов
       'arrow-parens': ['error', 'always'],
 
