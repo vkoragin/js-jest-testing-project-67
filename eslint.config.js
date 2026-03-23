@@ -3,35 +3,35 @@ import js from '@eslint/js'
 export default [
   js.configs.recommended,
   {
-    files: ['**/*.js'],
-    languageOptions: {
-      ecmaVersion: 'latest',
-      sourceType: 'module',
-      globals: {
-        process: 'readonly',
-        console: 'readonly',
-        test: 'readonly',
-        expect: 'readonly',
-        beforeEach: 'readonly',
-        afterEach: 'readonly',
-        describe: 'readonly',
-        jest: 'readonly',
+    'files': ['**/*.js'],
+    'languageOptions': {
+      'ecmaVersion': 'latest',
+      'sourceType': 'module',
+      'globals': {
+        'process': 'readonly',
+        'console': 'readonly',
+        'test': 'readonly',
+        'expect': 'readonly',
+        'beforeEach': 'readonly',
+        'afterEach': 'readonly',
+        'describe': 'readonly',
+        'jest': 'readonly',
       },
     },
-    rules: {
+    'rules': {
       'no-console': 'off',
 
       // Отступы
-      indent: ['error', 2],
+      'indent': ['error', 2],
 
-      // Кавычки для свойств объектов - отключаем проверку
-      'quote-props': 'off',
+      // Кавычки для свойств объектов - всегда использовать кавычки
+      'quote-props': ['error', 'always'],
 
       // Кавычки для строк
-      quotes: ['error', 'single'],
+      'quotes': ['error', 'single'],
 
       // Точки с запятой - не используем
-      semi: ['error', 'never'],
+      'semi': ['error', 'never'],
       'no-extra-semi': 'error',
 
       // Стрелочные функции - скобки только когда нужны
