@@ -10,12 +10,13 @@ const debug = debugLib('page-loader')
 
 const MAX_FILENAME_LENGTH = 200
 
-const sanitizeFilename = (filename) =>
-  filename
+const sanitizeFilename = (filename) => {
+  return filename
     .replace(/[<>:"/\\|?*]/g, '-')
     .replace(/\s+/g, '-')
     .replace(/-+/g, '-')
     .replace(/^[.-]+|[.-]+$/g, '')
+}
 
 const generateFileName = (url) => {
   const urlObj = new URL(url)
@@ -90,19 +91,29 @@ export default async (pageUrl, outputDir = process.cwd()) => {
   const resourceElements = [
     ...$('img')
       .toArray()
-      .map((el) => ({ el, attr: 'src' })),
+      .map((el) => {
+        return { el, attr: 'src' }
+      }),
     ...$('script[src]')
       .toArray()
-      .map((el) => ({ el, attr: 'src' })),
+      .map((el) => {
+        return { el, attr: 'src' }
+      }),
     ...$('link[rel=\'stylesheet\']')
       .toArray()
-      .map((el) => ({ el, attr: 'href' })),
+      .map((el) => {
+        return { el, attr: 'href' }
+      }),
     ...$('link[rel=\'canonical\']')
       .toArray()
-      .map((el) => ({ el, attr: 'href' })),
+      .map((el) => {
+        return { el, attr: 'href' }
+      }),
     ...$('link[rel=\'icon\']')
       .toArray()
-      .map((el) => ({ el, attr: 'href' })),
+      .map((el) => {
+        return { el, attr: 'href' }
+      }),
   ]
 
   const results = await Promise.allSettled(

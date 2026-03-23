@@ -31,7 +31,10 @@ export default [
       semi: ['error', 'never'],
       'no-extra-semi': 'error',
 
-      // Стрелочные функции — ВСЕГДА со скобками вокруг аргументов
+      // Стрелочные функции — ВСЕГДА с фигурными скобками и return
+      'arrow-body-style': ['error', 'always'],
+
+      // Стрелочные функции — всегда со скобками вокруг аргументов
       'arrow-parens': ['error', 'always'],
 
       // Фигурные скобки — стиль Stroustrup
