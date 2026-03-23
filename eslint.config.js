@@ -3,21 +3,7 @@ import js from '@eslint/js'
 export default [
   js.configs.recommended,
   {
-    files: ['eslint.config.js'],
-    rules: {
-      'quote-props': ['error', 'always'], // всегда с кавычками
-      indent: ['error', 2],
-      quotes: ['error', 'single'],
-      semi: ['error', 'never'],
-      'no-extra-semi': 'error',
-      'arrow-parens': 'off',
-      'brace-style': ['error', 'stroustrup'],
-      'comma-dangle': ['error', 'always-multiline'],
-      'no-console': 'off',
-    },
-  },
-  {
-    files: ['**/*.js', '!eslint.config.js'],
+    files: ['**/*.js'],
     languageOptions: {
       ecmaVersion: 'latest',
       sourceType: 'module',
@@ -25,6 +11,7 @@ export default [
         process: 'readonly',
         console: 'readonly',
         test: 'readonly',
+        expect: 'readonly',
         beforeEach: 'readonly',
         afterEach: 'readonly',
         describe: 'readonly',
@@ -33,14 +20,28 @@ export default [
     },
     rules: {
       'no-console': 'off',
-      'quote-props': ['error', 'as-needed'], // кавычки только когда нужны
+
+      // Отступы — 2 пробела
       indent: ['error', 2],
+
+      // Кавычки для строк — одинарные
       quotes: ['error', 'single'],
+
+      // Точки с запятой — не используем
       semi: ['error', 'never'],
       'no-extra-semi': 'error',
-      'arrow-parens': 'off',
+
+      // Стрелочные функции — ВСЕГДА со скобками вокруг аргументов
+      'arrow-parens': ['error', 'always'],
+
+      // Фигурные скобки — стиль Stroustrup
       'brace-style': ['error', 'stroustrup'],
+
+      // Запятые в конце — только для многострочных конструкций
       'comma-dangle': ['error', 'always-multiline'],
+
+      // Кавычки для свойств объектов — только когда нужны
+      'quote-props': ['error', 'as-needed'],
     },
   },
 ]
