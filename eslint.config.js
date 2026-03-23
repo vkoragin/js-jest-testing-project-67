@@ -3,13 +3,21 @@ import js from '@eslint/js'
 export default [
   js.configs.recommended,
   {
-    files: ['eslint.config.js'], // специальные правила для конфига
+    files: ['eslint.config.js'],
     rules: {
       'quote-props': ['error', 'always'], // всегда с кавычками
+      indent: ['error', 2],
+      quotes: ['error', 'single'],
+      semi: ['error', 'never'],
+      'no-extra-semi': 'error',
+      'arrow-parens': 'off',
+      'brace-style': ['error', 'stroustrup'],
+      'comma-dangle': ['error', 'always-multiline'],
+      'no-console': 'off',
     },
   },
   {
-    files: ['**/*.js', '!eslint.config.js'], // для всех остальных файлов, исключая конфиг
+    files: ['**/*.js', '!eslint.config.js'],
     languageOptions: {
       ecmaVersion: 'latest',
       sourceType: 'module',
